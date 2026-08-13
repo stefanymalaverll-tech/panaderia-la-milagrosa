@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Panadería La Milagrosa | POS e Inventario",
+  title: "Panadería La Milagrosa",
   description: "Sistema de control de ventas, caja e inventario para Panadería 'La Milagrosa'",
 };
 
