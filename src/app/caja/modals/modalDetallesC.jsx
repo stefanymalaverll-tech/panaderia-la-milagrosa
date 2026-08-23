@@ -24,7 +24,7 @@ export default function ModalDetallesC({ show, onClose, cajaSeleccionada, ordene
                     <div className="flex items-center gap-2">
                       <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded-md uppercase">Ticket #{orden.num_ticket}</span>
                       <span className="text-xs text-slate-500 font-medium">
-                        {new Date(orden.hora_orden.endsWith('Z') ? orden.hora_orden : `${orden.hora_orden}Z`).toLocaleTimeString('es-VE', { 
+                        {new Date(orden.hora_orden.replace(' ', 'T')).toLocaleTimeString('es-VE', { 
                           timeZone: 'America/Caracas',
                           hour: '2-digit', 
                           minute: '2-digit',
