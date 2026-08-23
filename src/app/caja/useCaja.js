@@ -16,6 +16,11 @@ export function useCaja() {
   const [montoAperturaBs, setMontoAperturaBs] = useState('');
   const [procesandoApertura, setProcesandoApertura] = useState(false);
 
+  // Vista Ordenes
+  const [showModalDetallesCaja, setShowModalDetallesCaja] = useState(false);
+  const [ordenesCaja, setOrdenesCaja] = useState([]);
+  const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
+
   // Estados desde Base de Datos
   const [tasaBCV, setTasaBCV] = useState(1.00);
   const [productos, setProductos] = useState([]);
@@ -166,6 +171,33 @@ export function useCaja() {
       mostrarMensaje("Error al abrir la caja. Intenta de nuevo.", 'error');
     } finally {
       setProcesandoApertura(false);
+    }
+  };
+
+  const handleAbrirMisVentas = async () => {
+    if (!cajaActiva?.id_caja) return;
+
+    setShowModalDetallesCaja(true);
+    setCargandoOrdenes(true);
+    setOrdenesCaja([]);
+
+    try {
+      const { data, error } = await supabase
+        .from('orden')
+        .select(`
+          id_orden, num_ticket, hora_orden, total_usd, total_bs,
+          detalle_orden (cantidad, precio_unitario_usd, subtotal_usd, producto (nombre, icono_producto (simbolo))),
+          pago_orden (monto_usd, monto_bs, numero_referencia, es_vuelto, pago (nombre, moneda))
+        `)
+        .eq('id_caja', cajaActiva.id_caja)
+        .order('hora_orden', { ascending: false });
+
+      if (error) throw error;
+      setOrdenesCaja(data || []);
+    } catch (err) {
+      mostrarMensaje('No se pudieron cargar las ventas de este turno.', 'error');
+    } finally {
+      setCargandoOrdenes(false);
     }
   };
 
@@ -321,6 +353,8 @@ export function useCaja() {
     cedulaNumero, setCedulaNumero, prefijoTel, setPrefijoTel, telefonoNumero, setTelefonoNumero,
     handleSoloNumeros, handleAbrirCaja, handleIrACierre, handleLogout, agregarAlCarrito, cambiarCantidad,
     eliminarDelCarrito, cancelarOrden, agregarPago, eliminarPago, procesarVentaReal,
-    esPagoMovil, totalPagarUSD, totalPagarBs, faltanteUSD, faltanteBs, vueltoUSD, vueltoBs, metodoActualObj
+    esPagoMovil, totalPagarUSD, totalPagarBs, faltanteUSD, faltanteBs, vueltoUSD, vueltoBs, metodoActualObj,
+    showModalDetallesCaja, setShowModalDetallesCaja, ordenesCaja, cargandoOrdenes,
+    cajaSeleccionada: cajaActiva, handleAbrirMisVentas
   };
 }

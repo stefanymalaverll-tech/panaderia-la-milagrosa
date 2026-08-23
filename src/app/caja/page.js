@@ -7,6 +7,7 @@ import CarritoTicket from './ui/carritoTicket';
 import ModuloPagos from './ui/moduloPagos';
 import BalanceVuelto from './ui/balanceVuelto';
 import ModalApertura from './modals/modalApertura';
+import ModalDetallesC from './modals/modalDetallesC';
 import SmsNotificacion from '@/componentes/ui/smsnotificacion'; 
 
 export default function CajaPage() {
@@ -27,6 +28,14 @@ export default function CajaPage() {
 
       {/* MODAL DE APERTURA */}
       <ModalApertura caja={caja} />
+
+      <ModalDetallesC
+        show={caja.showModalDetallesCaja} 
+        onClose={() => caja.setShowModalDetallesCaja(false)} 
+        cajaSeleccionada={caja.cajaSeleccionada} 
+        ordenesCaja={caja.ordenesCaja} 
+        cargandoOrdenes={caja.cargandoOrdenes} 
+      />
 
       {/* HEADER RESPONSIVO */}
       <HeaderCaja caja={caja} />
