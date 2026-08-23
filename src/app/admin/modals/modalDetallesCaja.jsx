@@ -24,8 +24,16 @@ export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ord
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
                     <div className="flex items-center gap-2">
                       <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded-md uppercase">Ticket #{orden.num_ticket}</span>
-                      <span className="text-xs text-slate-500 font-medium">{new Date(orden.hora_orden).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {new Date(orden.hora_orden.endsWith('Z') ? orden.hora_orden : `${orden.hora_orden}Z`).toLocaleTimeString('es-VE', { 
+                          timeZone: 'America/Caracas',
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          hour12: true 
+                        })}
+                      </span>
                     </div>
+                    
                     <div className="text-right">
                       <div className="text-sm font-extrabold text-slate-800">${Number(orden.total_usd).toFixed(2)}</div>
                       <div className="text-[10px] font-bold text-slate-500">Bs. {Number(orden.total_bs).toFixed(2)}</div>
