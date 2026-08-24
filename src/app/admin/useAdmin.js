@@ -72,6 +72,7 @@ export function useAdmin() {
   const [cajaSeleccionada, setCajaSeleccionada] = useState(null);
   const [ordenesCaja, setOrdenesCaja] = useState([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
+  const [ordenAEliminar, setOrdenAEliminar] = useState(null);
 
   // Notificaciones visuales (toast)
   const [notificacion, setNotificacion] = useState({ show: false, mensaje: '', tipo: 'success' });
@@ -411,6 +412,51 @@ export function useAdmin() {
     }
   };
 
+  const eliminarOrden = async () => {
+    if (!ordenAEliminar) return;
+    try {
+      // 1. Devolver el stock al inventario
+      if (ordenAEliminar.detalle_orden) {
+        for (const det of ordenAEliminar.detalle_orden) {
+          const { data: prod } = await supabase.from('producto').select('stock').eq('id_producto', det.producto.id_producto).single();
+          
+          if (prod) {
+            const nuevoStock = prod.stock + Number(det.cantidad);
+            // Actualizar stock
+            await supabase.from('producto').update({ stock: nuevoStock }).eq('id_producto', det.producto.id_producto);
+            // Registrar movimiento de entrada en el historial
+            await supabase.from('inventario_producto').insert([{
+              id_producto: det.producto.id_producto,
+              id_usuario: usuario.id_usuario,
+              id_registro: 1, // 1 = Entrada
+              cantidad: det.cantidad,
+              descripcion: `Devolución por orden eliminada (Ticket #${ordenAEliminar.num_ticket})`
+            }]);
+          }
+        }
+      }
+
+      // 2. Eliminar de la base de datos (El orden importa si no tienes "Borrado en Cascada" activado en Supabase)
+      await supabase.from('pago_orden').delete().eq('id_orden', ordenAEliminar.id_orden);
+      await supabase.from('detalle_orden').delete().eq('id_orden', ordenAEliminar.id_orden);
+      const { error } = await supabase.from('orden').delete().eq('id_orden', ordenAEliminar.id_orden);
+
+      if (error) throw error;
+
+      mostrarMensaje('🗑️ Orden eliminada y stock devuelto exitosamente.');
+      setOrdenAEliminar(null);
+      
+      // Actualizar la lista del modal actual
+      if (cajaSeleccionada) handleVerDetallesCaja(cajaSeleccionada);
+      inicializarAdmin(); // Actualizar dashboard
+
+    } catch (err) {
+      console.error(err);
+      mostrarMensaje('❌ Error al eliminar la orden.', 'error');
+      setOrdenAEliminar(null);
+    }
+  };
+
   const historialCaja = useMemo(() => {
     const ahora = new Date();
     return historialCajas.filter(caja => {
@@ -489,7 +535,7 @@ export function useAdmin() {
     showModalMP, setShowModalMP, monedaMP, setMonedaMP, nuevaMP, setNuevaMP,
     showModalEditarMP, setShowModalEditarMP, mpEditando, setMpEditando, monedaMPEdit, setMonedaMPEdit,
     showModalTasa, setShowModalTasa, nuevaTasaInput, setNuevaTasaInput,
-    productoAEliminar, setProductoAEliminar,
+    productoAEliminar, setProductoAEliminar, eliminarOrden, ordenAEliminar, setOrdenAEliminar,
     tipoFiltro, setTipoFiltro, fechaInicio, setFechaInicio, fechaFin, setFechaFin,
     showModalDetallesCaja, setShowModalDetallesCaja, cajaSeleccionada, ordenesCaja, cargandoOrdenes,
     notificacion, handleCrearProducto, handleActualizarProducto, handleCrearMateriaPrima,

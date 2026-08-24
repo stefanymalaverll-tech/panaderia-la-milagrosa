@@ -119,7 +119,7 @@ export default function AdminDashboardPage() {
       <ModalCrearMateriaPrima show={h.showModalMP} onClose={() => h.setShowModalMP(false)} onSubmit={h.handleCrearMateriaPrima} nuevaMP={h.nuevaMP} setNuevaMP={h.setNuevaMP} monedaMP={h.monedaMP} setMonedaMP={h.setMonedaMP} />
       <ModalEditarMateriaPrima show={h.showModalEditarMP} onClose={() => h.setShowModalEditarMP(false)} onSubmit={h.handleActualizarMateriaPrima} mpEditando={h.mpEditando} setMpEditando={h.setMpEditando} monedaMPEdit={h.monedaMPEdit} setMonedaMPEdit={h.setMonedaMPEdit} />
       <ModalTasaBCV show={h.showModalTasa} onClose={() => h.setShowModalTasa(false)} onSubmit={h.handleActualizarTasa} nuevaTasaInput={h.nuevaTasaInput} setNuevaTasaInput={h.setNuevaTasaInput} />
-      <ModalDetallesCaja show={h.showModalDetallesCaja} onClose={() => h.setShowModalDetallesCaja(false)} cajaSeleccionada={h.cajaSeleccionada} ordenesCaja={h.ordenesCaja} cargandoOrdenes={h.cargandoOrdenes} />
+      <ModalDetallesCaja show={h.showModalDetallesCaja} onClose={() => h.setShowModalDetallesCaja(false)} cajaSeleccionada={h.cajaSeleccionada} ordenesCaja={h.ordenesCaja} cargandoOrdenes={h.cargandoOrdenes} onEliminarOrden={h.setOrdenAEliminar} />
 
       {/* MODAL CONFIRMAR ELIMINACIÓN */}
       {h.productoAEliminar && (
@@ -131,6 +131,20 @@ export default function AdminDashboardPage() {
             <div className="flex justify-center gap-3 pt-4">
               <button type="button" onClick={() => h.setProductoAEliminar(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-colors">Cancelar</button>
               <button type="button" onClick={h.eliminarProducto} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">Sí, Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL CONFIRMAR ELIMINACIÓN DE ORDEN */}
+      {h.ordenAEliminar && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4 text-center transform transition-all">
+            <div className="text-5xl mb-2">🗑️</div>
+            <h3 className="text-lg font-bold text-slate-800">¿Eliminar Orden #{h.ordenAEliminar.num_ticket}?</h3>
+            <p className="text-sm text-slate-600">Esta acción borrará la venta, sus pagos registrados y devolverá los productos al inventario.</p>
+            <div className="flex justify-center gap-3 pt-4">
+              <button type="button" onClick={() => h.setOrdenAEliminar(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-colors">Cancelar</button>
+              <button type="button" onClick={h.eliminarOrden} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">Sí, Eliminar</button>
             </div>
           </div>
         </div>

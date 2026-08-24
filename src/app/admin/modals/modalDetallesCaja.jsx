@@ -1,4 +1,7 @@
+import { useState } from 'react';
+
 export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ordenesCaja, cargandoOrdenes }) {
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   if (!show) return null;
 
   return (
@@ -25,7 +28,7 @@ export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ord
                     <div className="flex items-center gap-2">
                       <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-1 rounded-md uppercase">Ticket #{orden.num_ticket}</span>
                       <span className="text-xs text-slate-500 font-medium">
-                        {new Date(orden.hora_orden.endsWith('Z') ? orden.hora_orden : `${orden.hora_orden}Z`).toLocaleTimeString('es-VE', { 
+                        {new Date(orden.hora_orden.substring(0, 19).replace(' ', 'T') + 'Z').toLocaleTimeString('es-VE', { 
                           timeZone: 'America/Caracas',
                           hour: '2-digit', 
                           minute: '2-digit',
@@ -33,12 +36,37 @@ export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ord
                         })}
                       </span>
                     </div>
-                    
-                    <div className="text-right">
-                      <div className="text-sm font-extrabold text-slate-800">${Number(orden.total_usd).toFixed(2)}</div>
-                      <div className="text-[10px] font-bold text-slate-500">Bs. {Number(orden.total_bs).toFixed(2)}</div>
+                    <div className="flex items-center gap-4 text-right">
+                      <div>
+                        <div className="text-sm font-extrabold text-slate-800">${Number(orden.total_usd).toFixed(2)}</div>
+                        <div className="text-[10px] font-bold text-slate-500">Bs. {Number(orden.total_bs).toFixed(2)}</div>
+                      </div>
+                      <div className="relative">
+                      <button 
+                        onClick={() => setMenuAbiertoId(menuAbiertoId === orden.id_orden ? null : orden.id_orden)}
+                        className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 w-7 h-7 rounded-lg transition-colors cursor-pointer flex items-center justify-center font-bold text-sm"
+                        title="Opciones"
+                      >
+                        ⋮
+                      </button>
+
+                      {/* MENÚ DESPLEGABLE FLOTANTE */}
+                      {menuAbiertoId === orden.id_orden && (
+                        <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-30">
+                          <button
+                            onClick={() => {
+                              setMenuAbiertoId(null);
+                              onEliminarOrden(orden);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer transition-colors"
+                          >
+                            🗑️ Eliminar Ticket
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
+                </div>
 
                   <div className="mb-3">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Productos</p>
