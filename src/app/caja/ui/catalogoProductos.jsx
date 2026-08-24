@@ -59,8 +59,11 @@ export default function CatalogoProductos({ caja }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5 md:gap-3 overflow-y-auto max-h-[50vh] lg:max-h-[calc(100vh-250px)] pr-1">
         {productos
-          .filter(p => (categoriaSeleccionada === 'Todas' || p.categoria?.nombre === categoriaSeleccionada) &&
-                     p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+          .filter(p => 
+            p.activo &&
+            (categoriaSeleccionada === 'Todas' || p.categoria?.nombre === categoriaSeleccionada) &&
+            p.nombre.toLowerCase().includes(busqueda.toLowerCase())
+          )
           .map((prod) => {
             let precioMostrarUSD, precioMostrarBs;
             if (prod.moneda_base === 'Bs') {

@@ -1,4 +1,4 @@
-export default function DashboardView({ stats, productosStockBajo, productosMasVendidos }) {
+export default function DashboardView({ stats, productosStockBajo, productosMasVendidos, onVerFacturasClick}) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -15,7 +15,13 @@ export default function DashboardView({ stats, productosStockBajo, productosMasV
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Volumen de Facturas</p>
             <h3 className="text-2xl font-extrabold text-slate-800 mt-1">{stats.totalFacturas}</h3>
           </div>
-          <div className="bg-amber-100 p-3 rounded-xl text-2xl">📄</div>
+          <button 
+            onClick={onVerFacturasClick}
+            title="Ver las Facturas de Hoy"
+            className="bg-amber-100 hover:bg-amber-200 p-3 rounded-xl text-2xl transition-all cursor-pointer shadow-sm hover:shadow active:scale-95 flex items-center justify-center"
+          >
+            📄
+          </button>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
@@ -81,7 +87,10 @@ export default function DashboardView({ stats, productosStockBajo, productosMasV
                         <span className="mr-2 text-lg">{prod.simbolo}</span>
                         {prod.nombre}
                       </td>
-                      <td className="p-3 text-right font-bold text-amber-600">{prod.totalCantidad} unids.</td>
+                      {/* Forzamos a 0 decimales para mostrar siempre unidades enteras */}
+                      <td className="p-3 text-right font-bold text-amber-600">
+                        {Number(prod.totalCantidad || 0).toFixed(0)} unids.
+                      </td>
                     </tr>
                   ))}
                 </tbody>

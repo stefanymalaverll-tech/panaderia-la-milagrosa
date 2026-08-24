@@ -60,7 +60,6 @@ export function useAdmin() {
   // Modal para Editar Tasa BCV
   const [showModalTasa, setShowModalTasa] = useState(false);
   const [nuevaTasaInput, setNuevaTasaInput] = useState('');
-  const [productoAEliminar, setProductoAEliminar] = useState(null);
 
   // Filtro de fechas
   const [tipoFiltro, setTipoFiltro] = useState('semanal');
@@ -309,6 +308,21 @@ export function useAdmin() {
     }
   };
 
+  const handleArchivarProducto = async (id_producto, estadoActual) => {
+    try {
+      const { error } = await supabase
+        .from('producto')
+        .update({ activo: !estadoActual })
+        .eq('id_producto', id_producto);
+
+      if (error) throw error;
+      mostrarMensaje(!estadoActual ? '📂 Producto restaurado correctamente' : '📁 Producto archivado correctamente');
+      inicializarAdmin();
+    } catch (err) {
+      mostrarMensaje('❌ Error al cambiar el estado del producto.', 'error');
+    }
+  };
+
   const handleCrearMateriaPrima = async (e) => {
     e.preventDefault();
     try {
@@ -395,20 +409,6 @@ export function useAdmin() {
       inicializarAdmin();
     } catch (err) {
       mostrarMensaje('❌ Error al actualizar la tasa. Intenta de nuevo.', 'error');
-    }
-  };
-
-  const eliminarProducto = async () => {
-    if (!productoAEliminar) return;
-    try {
-      const { error } = await supabase.from('producto').delete().eq('id_producto', productoAEliminar);
-      if (error) throw error;
-      mostrarMensaje('🗑️ Producto eliminado correctamente.');
-      setProductoAEliminar(null);
-      inicializarAdmin();
-    } catch (err) {
-      mostrarMensaje('❌ Error al eliminar producto. Intenta de nuevo.', 'error');
-      setProductoAEliminar(null);
     }
   };
 
@@ -535,10 +535,10 @@ export function useAdmin() {
     showModalMP, setShowModalMP, monedaMP, setMonedaMP, nuevaMP, setNuevaMP,
     showModalEditarMP, setShowModalEditarMP, mpEditando, setMpEditando, monedaMPEdit, setMonedaMPEdit,
     showModalTasa, setShowModalTasa, nuevaTasaInput, setNuevaTasaInput,
-    productoAEliminar, setProductoAEliminar, eliminarOrden, ordenAEliminar, setOrdenAEliminar,
+    eliminarOrden, ordenAEliminar, setOrdenAEliminar,
     tipoFiltro, setTipoFiltro, fechaInicio, setFechaInicio, fechaFin, setFechaFin,
     showModalDetallesCaja, setShowModalDetallesCaja, cajaSeleccionada, ordenesCaja, cargandoOrdenes,
-    notificacion, handleCrearProducto, handleActualizarProducto, handleCrearMateriaPrima,
-    handleActualizarMateriaPrima, handleActualizarTasa, eliminarProducto, handleLogout, handleVerDetallesCaja
+    notificacion, handleCrearProducto, handleActualizarProducto, handleArchivarProducto, handleCrearMateriaPrima,
+    handleActualizarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja
   };
 }

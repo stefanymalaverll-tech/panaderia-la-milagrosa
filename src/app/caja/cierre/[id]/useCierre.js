@@ -101,6 +101,19 @@ export function useCierre() {
     try {
       const idCajaNum = parseInt(id, 10);
 
+      // 1. Obtener la tasa BCV actual para congelar el valor histórico
+      const { data: configData, error: errorConfig } = await supabase
+        .from('configuracion') 
+        .select('tasa_bcv')
+        .single();
+      
+      if (errorConfig) throw errorConfig;
+      const tasaActual = Number(configData?.tasa_bcv || 1);
+
+      // 2. Usar directamente los subtotales ya calculados arriba (evita duplicar bucles)
+      const totalUsdCierreCalculado = subtotalUsd + (subtotalBs / tasaActual);
+
+      // 3. Preparar e insertar los detalles del arqueo
       const detallesInsercion = desglosePagos.map(item => {
         const contado = montosContados[item.id_pago] || 0;
         const esperado = Number(item.monto_esperado) || 0;
@@ -123,7 +136,8 @@ export function useCierre() {
         .from('caja')
         .update({ 
           status: 'Cerrado', 
-          hora_cierre: new Date().toISOString() 
+          hora_cierre: new Date().toISOString(),
+          total_usd_cierre: totalUsdCierreCalculado
         })
         .eq('id_caja', idCajaNum);
 

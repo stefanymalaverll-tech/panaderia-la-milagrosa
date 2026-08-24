@@ -276,7 +276,16 @@ export function useCaja() {
   const agregarPago = () => {
     const montoIngresado = parseFloat(montoAbonoInput);
     if (!montoIngresado || montoIngresado <= 0) return;
-    if (esPagoMovil && !numReferencia.trim()) { alert("Ingrese el número de referencia."); return; }
+    if (esPagoMovil && !numReferencia.trim()) { alert("⚠️ Debe ingresar el número de referencia para registrar el Pago Móvil."); return; }
+
+    const referenciaDuplicadaLocal = pagosRegistrados.some(
+      (pago) => pago.numero_referencia === numReferencia.trim()
+    );
+
+    if (referenciaDuplicadaLocal) {
+      alert("⚠️ Esta referencia ya se encuentra registrada en el sistema de un pago anterior.");
+      return;
+    }
 
     let montoUSDCalculado = metodoActualObj.moneda === 'Bs' ? montoIngresado / tasaBCV : montoIngresado;
     let montoBsCalculado = metodoActualObj.moneda === 'Bs' ? montoIngresado : montoIngresado * tasaBCV;
@@ -289,12 +298,10 @@ export function useCaja() {
       montoUSD: montoUSDCalculado,
       montoBs: montoBsCalculado,
       numero_referencia: esPagoMovil ? numReferencia.trim() : null,
-      telefono_cliente: esPagoMovil ? telefonoCompleto : null,
-      cedula_cliente: esPagoMovil ? cedulaCompleta : null,
       es_vuelto: false
     }]);
 
-    setMontoAbonoInput(''); setNumReferencia(''); setCedulaNumero(''); setTelefonoNumero('');
+    setMontoAbonoInput(''); setNumReferencia('');
   };
 
   const eliminarPago = (index) => setPagosRegistrados(pagosRegistrados.filter((_, i) => i !== index));
@@ -349,8 +356,7 @@ export function useCaja() {
     tasaBCV, productos, metodosPagoBD, categoriasBD, numOrden, tipoPrecio, setTipoPrecio,
     categoriaSeleccionada, setCategoriaSeleccionada, busqueda, setBusqueda, carrito, pagosRegistrados,
     metodoSeleccionado, setMetodoSeleccionado, montoAbonoInput, setMontoAbonoInput, procesando,
-    idMetodoVuelto, setIdMetodoVuelto, numReferencia, setNumReferencia, tipoCedula, setTipoCedula,
-    cedulaNumero, setCedulaNumero, prefijoTel, setPrefijoTel, telefonoNumero, setTelefonoNumero,
+    idMetodoVuelto, setIdMetodoVuelto, numReferencia, setNumReferencia,
     handleSoloNumeros, handleAbrirCaja, handleIrACierre, handleLogout, agregarAlCarrito, cambiarCantidad,
     eliminarDelCarrito, cancelarOrden, agregarPago, eliminarPago, procesarVentaReal,
     esPagoMovil, totalPagarUSD, totalPagarBs, faltanteUSD, faltanteBs, vueltoUSD, vueltoBs, metodoActualObj,

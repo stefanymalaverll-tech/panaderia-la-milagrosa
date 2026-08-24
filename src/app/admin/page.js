@@ -76,7 +76,20 @@ export default function AdminDashboardPage() {
       {/* CONTENIDO PRINCIPAL */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {h.pestanaActiva === 'dashboard' && (
-          <DashboardView stats={h.stats} productosStockBajo={h.productosStockBajo} productosMasVendidos={h.productosMasVendidos} />
+          <DashboardView 
+            stats={h.stats} 
+            productosStockBajo={h.productosStockBajo} 
+            productosMasVendidos={h.productosMasVendidos} 
+            onVerFacturasClick={() => {
+              const cajaActiva = h.historialCaja.find(c => c.status?.toLowerCase() !== 'cerrado'); 
+              
+              if (cajaActiva) {
+                h.handleVerDetallesCaja(cajaActiva); 
+              } else {
+                alert("No hay un turno de caja abierto en este momento.");
+              }
+            }}
+          />
         )}
 
         {h.pestanaActiva === 'caja' && (
@@ -85,7 +98,7 @@ export default function AdminDashboardPage() {
             fechaInicio={h.fechaInicio} setFechaInicio={h.setFechaInicio}
             fechaFin={h.fechaFin} setFechaFin={h.setFechaFin}
             statsCaja={h.statsCaja} historialCaja={h.historialCaja}
-            handleVerDetallesCaja={h.handleVerDetallesCaja}
+            handleVerDetallesCaja={h.handleVerDetallesCaja} tasa={h.tasaBCV}
           />
         )}
 
@@ -96,7 +109,7 @@ export default function AdminDashboardPage() {
             busquedaProducto={h.busquedaProducto} setBusquedaProducto={h.setBusquedaProducto}
             setShowModalProducto={h.setShowModalProducto} setProdEditando={h.setProdEditando}
             setMonedaPreciosEdit={h.setMonedaPreciosEdit} setShowModalEditarProd={h.setShowModalEditarProd}
-            handleEliminarProducto={h.setProductoAEliminar}
+            handleArchivarProducto={h.handleArchivarProducto} tasa={h.tasaBCV}
           />
         )}
 
@@ -121,20 +134,6 @@ export default function AdminDashboardPage() {
       <ModalTasaBCV show={h.showModalTasa} onClose={() => h.setShowModalTasa(false)} onSubmit={h.handleActualizarTasa} nuevaTasaInput={h.nuevaTasaInput} setNuevaTasaInput={h.setNuevaTasaInput} />
       <ModalDetallesCaja show={h.showModalDetallesCaja} onClose={() => h.setShowModalDetallesCaja(false)} cajaSeleccionada={h.cajaSeleccionada} ordenesCaja={h.ordenesCaja} cargandoOrdenes={h.cargandoOrdenes} onEliminarOrden={h.setOrdenAEliminar} />
 
-      {/* MODAL CONFIRMAR ELIMINACIÓN */}
-      {h.productoAEliminar && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4 text-center transform transition-all">
-            <div className="text-5xl mb-2">⚠️</div>
-            <h3 className="text-lg font-bold text-slate-800">¿Eliminar Producto?</h3>
-            <p className="text-sm text-slate-600">Esta acción no se puede deshacer.</p>
-            <div className="flex justify-center gap-3 pt-4">
-              <button type="button" onClick={() => h.setProductoAEliminar(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer transition-colors">Cancelar</button>
-              <button type="button" onClick={h.eliminarProducto} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">Sí, Eliminar</button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* MODAL CONFIRMAR ELIMINACIÓN DE ORDEN */}
       {h.ordenAEliminar && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ordenesCaja, cargandoOrdenes }) {
+export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ordenesCaja, cargandoOrdenes, onEliminarOrden}) {
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   if (!show) return null;
 
