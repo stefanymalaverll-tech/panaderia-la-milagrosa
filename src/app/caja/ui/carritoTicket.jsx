@@ -36,9 +36,6 @@ export default function CarritoTicket({ caja }) {
               <div key={item.id_producto} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-slate-900 truncate">{item.nombre}</p>
-                  <p className="text-[10px] text-slate-600 font-bold">
-                    Bs. {(item.precioBs).toFixed(2)} <span className="text-slate-500 font-semibold">(${item.precioUSD.toFixed(2)})</span>
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
