@@ -1,38 +1,38 @@
 export default function BalanceVuelto({ caja }) {
   const {
-    vueltoUSD, vueltoBs, faltanteUSD, faltanteBs, totalPagarUSD,
+    vueltoUSD, vueltoBs, faltanteUSD, faltanteBs, totalPagarBs,
     idMetodoVuelto, setIdMetodoVuelto, metodosPagoBD
   } = caja;
 
   return (
     <div className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 transition-all ${
-      vueltoUSD > 0.01 
+      vueltoBs > 0 
         ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-        : faltanteUSD === 0 && totalPagarUSD > 0
+        : faltanteBs === 0 && totalPagarBs > 0
         ? 'bg-emerald-100 border-emerald-400 text-emerald-950 font-bold'
         : 'bg-amber-50 border-amber-300 text-amber-950'
     }`}>
       <div className="flex justify-between items-center">
         <div>
           <span className="text-[10px] font-extrabold uppercase block">
-            {vueltoUSD > 0.01 
+            {vueltoBs > 0 
               ? '🟢 Vuelto a entregar:' 
-              : faltanteUSD === 0 
+              : faltanteBs === 0 
               ? '✅ Orden Cubierta' 
               : '🟡 Restante por cobrar:'}
           </span>
           <p className="text-sm md:text-base font-black">
-            Bs. {(vueltoUSD > 0.01 ? vueltoBs : faltanteBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+            Bs. {(vueltoBs > 0 ? vueltoBs : faltanteBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs font-bold text-slate-700">
-            ${(vueltoUSD > 0.01 ? vueltoUSD : faltanteUSD).toFixed(2)} USD
+            ${(vueltoBs > 0 ? vueltoUSD : faltanteUSD).toFixed(2)} USD
           </p>
         </div>
       </div>
 
-      {vueltoUSD > 0.01 && (
+      {vueltoBs > 0 && (
         <div className="pt-2 border-t border-emerald-200 flex flex-col gap-1">
           <label className="text-[10px] font-bold text-emerald-900 uppercase">
             ¿De qué caja/método entregas el vuelto?

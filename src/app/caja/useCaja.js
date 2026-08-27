@@ -255,15 +255,18 @@ export function useCaja() {
     }
   };
 
-  const totalPagarUSD = carrito.reduce((acc, item) => acc + (item.precioUSD * item.cantidad), 0);
   const totalPagarBs = carrito.reduce((acc, item) => acc + (item.precioBs * item.cantidad), 0);
-  const totalAbonadoUSD = pagosRegistrados.reduce((acc, p) => acc + p.montoUSD, 0);
+  const totalAbonadoBs = pagosRegistrados.reduce((acc, p) => acc + p.montoBs, 0);
 
-  // REDONDEO APLICADO DE FORMA SEGURA
-  const faltanteUSD = Math.max(0, Number((totalPagarUSD - totalAbonadoUSD).toFixed(2)));
-  const faltanteBs = Number((faltanteUSD * tasaBCV).toFixed(2));
-  const vueltoUSD = Math.max(0, Number((totalAbonadoUSD - totalPagarUSD).toFixed(2)));
-  const vueltoBs = Number((vueltoUSD * tasaBCV).toFixed(2));
+  const balanceBs = totalPagarBs - totalAbonadoBs;
+
+  const faltanteBs = balanceBs > 0 ? Number(balanceBs.toFixed(2)) : 0;
+  const vueltoBs = balanceBs < 0 ? Number(Math.abs(balanceBs).toFixed(2)) : 0;
+
+  const totalPagarUSD = Number((totalPagarBs / tasaBCV).toFixed(2));
+  const totalAbonadoUSD = Number((totalAbonadoBs / tasaBCV).toFixed(2));
+  const faltanteUSD = Number((faltanteBs / tasaBCV).toFixed(2));
+  const vueltoUSD = Number((vueltoBs / tasaBCV).toFixed(2));
 
   const agregarPago = () => {
     const montoIngresado = parseFloat(montoAbonoInput);
