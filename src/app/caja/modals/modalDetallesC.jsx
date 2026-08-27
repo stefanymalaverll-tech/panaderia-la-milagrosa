@@ -38,8 +38,8 @@ export default function ModalDetallesC({ show, onClose, cajaSeleccionada, ordene
                       </span>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-extrabold text-slate-800">Bs. {Number(orden.total_bs).toFixed(2)}</div>
-                      <div className="text-[10px] font-bold text-slate-500">${Number(orden.total_usd).toFixed(2)} USD</div>
+                      <div className="text-sm font-extrabold text-slate-700">Bs. {Number(orden.total_bs).toFixed(2)}</div>
+                      <div className="text-[10px] font-bold text-slate-600">${Number(orden.total_usd).toFixed(2)} USD</div>
                     </div>
                   </div>
 
@@ -54,8 +54,7 @@ export default function ModalDetallesC({ show, onClose, cajaSeleccionada, ordene
                             <span className="font-medium text-slate-700">{detalle.producto?.icono_producto?.simbolo || '📦'} {detalle.producto?.nombre}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-slate-800 font-bold block">Bs. {Number(detalle.subtotal_bs || (detalle.subtotal_usd * (orden.total_bs / orden.total_usd))).toFixed(2)}</span>
-                            <span className="text-[10px] text-slate-400 font-semibold">${Number(detalle.subtotal_usd).toFixed(2)}</span>
+                            <span className="text-slate-600 font-bold block">Bs. {Number(detalle.subtotal_bs || (detalle.subtotal_usd * (orden.total_bs / orden.total_usd))).toFixed(2)}</span>
                           </div>
                         </li>
                       ))}
