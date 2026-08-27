@@ -46,8 +46,8 @@ export default function CarritoTicket({ caja }) {
                     id="cambiocant"
                     name="cambio_cantidad"
                     type="number"
-                    step="0.001"
-                    min="0.001"
+                    step="0.01" 
+                    min="0.01"
                     value={item.cantidad}
                     onChange={(e) => cambiarCantidad(item.id_producto, e.target.value)}
                     className="w-12 md:w-14 text-center py-1 font-bold text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-slate-900"

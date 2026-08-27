@@ -40,13 +40,7 @@ export function useCaja() {
   const [montoAbonoInput, setMontoAbonoInput] = useState('');
   const [procesando, setProcesando] = useState(false);
   const [idMetodoVuelto, setIdMetodoVuelto] = useState('');
-
-  // Estados para datos del Pago Móvil
   const [numReferencia, setNumReferencia] = useState('');
-  const [tipoCedula, setTipoCedula] = useState('V-');
-  const [cedulaNumero, setCedulaNumero] = useState('');
-  const [prefijoTel, setPrefijoTel] = useState('0412');
-  const [telefonoNumero, setTelefonoNumero] = useState('');
 
   const timerNotificacion = useRef(null);
 
@@ -64,9 +58,6 @@ export function useCaja() {
       setNotificacion({ show: false, mensaje: '', tipo: 'success' });
     }, 3500);
   };
-
-  const cedulaCompleta = cedulaNumero ? `${tipoCedula}${cedulaNumero}` : '';
-  const telefonoCompleto = telefonoNumero ? `${prefijoTel}${telefonoNumero}` : '';
 
   useEffect(() => {
     inicializarCaja();
@@ -260,7 +251,7 @@ export function useCaja() {
     if (carrito.length === 0) return;
     if (confirm('¿Estás segura de cancelar la orden?')) {
       setCarrito([]); setPagosRegistrados([]); setMontoAbonoInput(''); setNumReferencia(''); 
-      setCedulaNumero(''); setTelefonoNumero(''); setIdMetodoVuelto('');
+      setIdMetodoVuelto('');
     }
   };
 
@@ -268,10 +259,11 @@ export function useCaja() {
   const totalPagarBs = carrito.reduce((acc, item) => acc + (item.precioBs * item.cantidad), 0);
   const totalAbonadoUSD = pagosRegistrados.reduce((acc, p) => acc + p.montoUSD, 0);
 
-  const faltanteUSD = Math.max(0, totalPagarUSD - totalAbonadoUSD);
-  const faltanteBs = faltanteUSD * tasaBCV;
-  const vueltoUSD = Math.max(0, totalAbonadoUSD - totalPagarUSD);
-  const vueltoBs = vueltoUSD * tasaBCV;
+  // REDONDEO APLICADO DE FORMA SEGURA
+  const faltanteUSD = Math.max(0, Number((totalPagarUSD - totalAbonadoUSD).toFixed(2)));
+  const faltanteBs = Number((faltanteUSD * tasaBCV).toFixed(2));
+  const vueltoUSD = Math.max(0, Number((totalAbonadoUSD - totalPagarUSD).toFixed(2)));
+  const vueltoBs = Number((vueltoUSD * tasaBCV).toFixed(2));
 
   const agregarPago = () => {
     const montoIngresado = parseFloat(montoAbonoInput);
@@ -313,22 +305,26 @@ export function useCaja() {
 
     try {
       const detallesList = carrito.map(item => ({
-        id_producto: item.id_producto, cantidad: item.cantidad,
-        precio_unitario_usd: item.precioUSD, subtotal_usd: item.precioUSD * item.cantidad, 
+        id_producto: item.id_producto, 
+        cantidad: item.cantidad,
+        precio_unitario_usd: Number(item.precioUSD.toFixed(2)), 
+        subtotal_usd: Number((item.precioUSD * item.cantidad).toFixed(2)), 
         tipo_precio: tipoPrecio
       }));
 
+      // AQUI ELIMINAMOS telefono_cliente Y cedula_cliente
       let pagosList = pagosRegistrados.map(p => ({
         id_pago: p.id_pago, monto_ingresado: p.montoIngresado, monto_usd: p.montoUSD, monto_bs: p.montoBs,
-        numero_referencia: p.numero_referencia, telefono_cliente: p.telefono_cliente, cedula_cliente: p.cedula_cliente, es_vuelto: false
+        numero_referencia: p.numero_referencia, es_vuelto: false
       }));
 
       if (vueltoUSD > 0) {
         const metodoVueltoObj = metodosPagoBD.find(m => String(m.id_pago) === String(idMetodoVuelto));
         const esVueltoBs = metodoVueltoObj?.moneda === 'Bs';
+        // AQUI TAMBIEN SE ELIMINARON LOS CAMPOS RESTANTES
         pagosList.push({
           id_pago: parseInt(idMetodoVuelto), monto_ingresado: esVueltoBs ? -vueltoBs : -vueltoUSD,
-          monto_usd: -vueltoUSD, monto_bs: -vueltoBs, numero_referencia: null, telefono_cliente: null, cedula_cliente: null, es_vuelto: true
+          monto_usd: -vueltoUSD, monto_bs: -vueltoBs, numero_referencia: null, es_vuelto: true
         });
       }
 
@@ -341,7 +337,7 @@ export function useCaja() {
       if (error) throw error;
 
       mostrarMensaje(`✅ Venta #${numOrden} registrada con éxito.`);
-      setCarrito([]); setPagosRegistrados([]); setMontoAbonoInput(''); setNumReferencia(''); setCedulaNumero(''); setTelefonoNumero(''); setIdMetodoVuelto('');
+      setCarrito([]); setPagosRegistrados([]); setMontoAbonoInput(''); setNumReferencia(''); setIdMetodoVuelto('');
       setNumOrden(prev => prev + 1);
       await cargarProductos();
     } catch (error) {

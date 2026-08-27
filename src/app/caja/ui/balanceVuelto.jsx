@@ -6,7 +6,7 @@ export default function BalanceVuelto({ caja }) {
 
   return (
     <div className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 transition-all ${
-      vueltoUSD > 0.001 
+      vueltoUSD > 0.01 
         ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
         : faltanteUSD === 0 && totalPagarUSD > 0
         ? 'bg-emerald-100 border-emerald-400 text-emerald-950 font-bold'
@@ -15,24 +15,24 @@ export default function BalanceVuelto({ caja }) {
       <div className="flex justify-between items-center">
         <div>
           <span className="text-[10px] font-extrabold uppercase block">
-            {vueltoUSD > 0.001 
+            {vueltoUSD > 0.01 
               ? '🟢 Vuelto a entregar:' 
               : faltanteUSD === 0 
               ? '✅ Orden Cubierta' 
               : '🟡 Restante por cobrar:'}
           </span>
           <p className="text-sm md:text-base font-black">
-            Bs. {(vueltoUSD > 0.001 ? vueltoBs : faltanteBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+            Bs. {(vueltoUSD > 0.01 ? vueltoBs : faltanteBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs font-bold text-slate-700">
-            ${(vueltoUSD > 0.001 ? vueltoUSD : faltanteUSD).toFixed(2)} USD
+            ${(vueltoUSD > 0.01 ? vueltoUSD : faltanteUSD).toFixed(2)} USD
           </p>
         </div>
       </div>
 
-      {vueltoUSD > 0.001 && (
+      {vueltoUSD > 0.01 && (
         <div className="pt-2 border-t border-emerald-200 flex flex-col gap-1">
           <label className="text-[10px] font-bold text-emerald-900 uppercase">
             ¿De qué caja/método entregas el vuelto?

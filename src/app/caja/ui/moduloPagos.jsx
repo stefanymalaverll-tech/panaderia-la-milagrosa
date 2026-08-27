@@ -62,7 +62,7 @@ export default function ModuloPagos({ caja }) {
             <input
               id="Referencia"
               name="Referencia"
-              type="text"
+              type="number"
               placeholder="Ej: 8492"
               value={numReferencia}
               onChange={(e) => handleSoloNumeros(e.target.value, setNumReferencia, 5)}

@@ -27,7 +27,7 @@ export default function ItemDesglosePago({ item, contado, diferencia, icono, gen
           <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-1">Declarado</label>
           {generandoImagen ? (
             <div className="w-32 py-2 px-1 font-black text-slate-900 text-right text-base"> 
-              {contado.toFixed(2)} <span className="text-xs font-normal text-slate-500">{item.moneda}</span>
+              {Number(contado || 0).toFixed(2)} <span className="text-xs font-normal text-slate-500">{item.moneda}</span>
             </div>
           ) : (
             <input
@@ -35,7 +35,7 @@ export default function ItemDesglosePago({ item, contado, diferencia, icono, gen
               placeholder="0.00"
               min="0"
               step="0.01"
-              value={contado !== undefined && contado !== 0 ? contado : ''}
+              value={contado !== undefined && contado !== 0 && contado !== '' ? contado : ''}
               className="w-32 px-3 py-2 bg-white border-2 border-stone-400 rounded-none text-right font-black text-slate-900 text-base focus:outline-none focus:border-amber-700 transition-all"
               style={{ 
                 color: '#0f172a', 
@@ -48,17 +48,17 @@ export default function ItemDesglosePago({ item, contado, diferencia, icono, gen
         </div>
 
         {/* Diferencia */}
-        {(!generandoImagen || diferencia !== 0) && (
+        {(!generandoImagen || Number(diferencia) !== 0) && (
           <div className="flex items-center justify-center min-w-[75px]">
             <span 
               className={`px-3 py-1.5 rounded-none text-xs font-black tracking-wide ${
-                diferencia < 0 ? 'bg-rose-100 text-rose-900 border border-rose-300' : 
-                diferencia > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 
+                Number(diferencia) < 0 ? 'bg-rose-100 text-rose-900 border border-rose-300' : 
+                Number(diferencia) > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 
                 'bg-emerald-100 text-emerald-900 border border-emerald-300'
               }`}
               style={{ boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
             >
-              {diferencia !== 0 ? (diferencia > 0 ? `+${diferencia.toFixed(2)}` : diferencia.toFixed(2)) : '✨ OK'}
+              {Number(diferencia) !== 0 ? (Number(diferencia) > 0 ? `+${Number(diferencia).toFixed(2)}` : Number(diferencia).toFixed(2)) : '✨ OK'}
             </span>
           </div>
         )}
