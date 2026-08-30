@@ -54,8 +54,7 @@ export default function ModalDetallesC({ show, onClose, cajaSeleccionada, ordene
                             <span className="font-medium text-slate-700">{detalle.producto?.icono_producto?.simbolo || '📦'} {detalle.producto?.nombre}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-slate-600 font-bold block">Bs. {Number(detalle.subtotal_bs || (detalle.subtotal_usd * (orden.total_bs / orden.total_usd))).toFixed(2)}</span>
-                          </div>
+                            <span className="text-slate-600 font-bold block">Bs. {Number(detalle.subtotal_bs || (detalle.subtotal_usd * (orden.total_bs / orden.total_usd))).toFixed(2)}</span>                          </div>
                         </li>
                       ))}
                     </ul>

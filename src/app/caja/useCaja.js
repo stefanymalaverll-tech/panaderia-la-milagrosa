@@ -177,7 +177,7 @@ export function useCaja() {
         .from('orden')
         .select(`
           id_orden, num_ticket, hora_orden, total_usd, total_bs,
-          detalle_orden (cantidad, precio_unitario_usd, subtotal_usd, producto (nombre, icono_producto (simbolo))),
+          detalle_orden (cantidad, precio_unitario_usd, subtotal_usd, subtotal_bs, producto (nombre, icono_producto (simbolo))),
           pago_orden (monto_usd, monto_bs, numero_referencia, es_vuelto, pago (nombre, moneda))
         `)
         .eq('id_caja', cajaActiva.id_caja)
@@ -312,6 +312,8 @@ export function useCaja() {
         cantidad: item.cantidad,
         precio_unitario_usd: Number(item.precioUSD.toFixed(2)), 
         subtotal_usd: Number((item.precioUSD * item.cantidad).toFixed(2)), 
+        precio_unitario_bs: Number(item.precioBs.toFixed(2)),
+        subtotal_bs: Number((item.precioBs * item.cantidad).toFixed(2)),
         tipo_precio: tipoPrecio
       }));
 
