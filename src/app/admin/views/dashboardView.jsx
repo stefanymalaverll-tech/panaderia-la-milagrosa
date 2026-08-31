@@ -1,4 +1,11 @@
-export default function DashboardView({ stats, productosStockBajo, productosMasVendidos, onVerFacturasClick}) {
+export default function DashboardView({ 
+  stats, 
+  productosStockBajo, 
+  productosMasVendidos, 
+  onVerFacturasClick,
+  filtroMasVendidos,
+  setFiltroMasVendidos 
+}) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -65,12 +72,43 @@ export default function DashboardView({ stats, productosStockBajo, productosMasV
           )}
         </div>
 
+        {/* Tarjeta de Productos Más Vendidos con Pestañas de Filtro */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <span>🔥</span> Productos Más Vendidos
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <span>🔥</span> Productos Más Vendidos
+            </h2>
+            
+            <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
+              <button
+                onClick={() => setFiltroMasVendidos('turno')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  filtroMasVendidos === 'turno'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Turno Activo
+              </button>
+              <button
+                onClick={() => setFiltroMasVendidos('general')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  filtroMasVendidos === 'general'
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                General
+              </button>
+            </div>
+          </div>
+
           {productosMasVendidos.length === 0 ? (
-            <p className="text-sm text-slate-500 py-6 text-center">No hay registros de ventas suficientes todavía.</p>
+            <p className="text-sm text-slate-500 py-6 text-center">
+              {filtroMasVendidos === 'turno' 
+                ? 'No hay ventas registradas.' 
+                : 'No hay registros de ventas suficientes.'}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -87,7 +125,6 @@ export default function DashboardView({ stats, productosStockBajo, productosMasV
                         <span className="mr-2 text-lg">{prod.simbolo}</span>
                         {prod.nombre}
                       </td>
-                      {/* Forzamos a 0 decimales para mostrar siempre unidades enteras */}
                       <td className="p-3 text-right font-bold text-amber-600">
                         {Number(prod.totalCantidad || 0).toFixed(0)} unids.
                       </td>

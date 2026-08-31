@@ -20,7 +20,6 @@ export function useAdmin() {
   const [iconosDisponibles, setIconosDisponibles] = useState([]);
   const [materiaPrima, setMateriaPrima] = useState([]);
   const [usuariosSistema, setUsuariosSistema] = useState([]);
-  const [productosMasVendidos, setProductosMasVendidos] = useState([]);
 
   // Estados para el Control de Caja y Estadísticas
   const [historialCajas, setHistorialCajas] = useState([]);
@@ -74,6 +73,12 @@ export function useAdmin() {
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
   const [ordenAEliminar, setOrdenAEliminar] = useState(null);
 
+  // Estados para Productos Más Vendidos y Filtros
+  const [filtroMasVendidos, setFiltroMasVendidos] = useState('turno');
+  const [detallesOrdenesRaw, setDetallesOrdenesRaw] = useState([]);
+  const [ordenesHoyRaw, setOrdenesHoyRaw] = useState([]);
+  const [cajaAbiertaIdGlobal, setCajaAbiertaIdGlobal] = useState(null);
+
   // Notificaciones visuales (toast)
   const [notificacion, setNotificacion] = useState({ show: false, mensaje: '', tipo: 'success' });
   const timerNotificacion = useRef(null);
@@ -124,14 +129,14 @@ export function useAdmin() {
         resCajas
       ] = await Promise.all([
         supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single(),
-        supabase.from('producto').select('*, icono_producto(simbolo)').lt('stock', 5),
+        supabase.from('producto').select('*, categoria(nombre), icono_producto(simbolo)').lt('stock', 5),
         supabase.from('producto').select('*, categoria(nombre), icono_producto(simbolo)').order('nombre'),
         supabase.from('categoria').select('*'),
         supabase.from('icono_producto').select('*'),
         supabase.from('materia_prima').select('*').order('nombre'),
         supabase.from('usuario').select('*'),
-        supabase.from('orden').select('total_usd, id_orden', { count: 'exact' }).gte('hora_orden', new Date().toISOString().split('T')[0]),
-        supabase.from('detalle_orden').select('cantidad, producto(id_producto, nombre, icono_producto(simbolo))'),
+        supabase.from('orden').select('total_usd, id_orden, id_caja').gte('hora_orden', new Date().toISOString().split('T')[0]),        
+        supabase.from('detalle_orden').select('cantidad, id_orden, producto(id_producto, nombre, icono_producto(simbolo))'),
         supabase.from('caja').select('*, usuario(nombre), detalle_cierre_caja(monto_esperado, monto_contado, diferencia, pago(nombre, moneda))').order('hora_apertura', { ascending: false }).limit(20)
       ]);
 
@@ -141,49 +146,31 @@ export function useAdmin() {
         setTasaBCV(tasaActual);
         setNuevaTasaInput(resConfig.data.tasa_bcv);
       }
+
       if (resStockBajo.data) {
-        setProductosStockBajo(resStockBajo.data);
-        setStats(prev => ({ ...prev, productosBajoStock: resStockBajo.data.length }));
+        const stockBajoFiltrado = resStockBajo.data.filter(prod => {
+          const nombreCat = prod.categoria?.nombre || '';
+          return !verificarEsPanaderia(nombreCat);
+        });
+        setProductosStockBajo(stockBajoFiltrado);
+        setStats(prev => ({ ...prev, productosBajoStock: stockBajoFiltrado.length }));
       }
+
       if (resProductos.data) setProductos(resProductos.data);
       if (resCategorias.data) setCategorias(resCategorias.data);
       if (resIconos.data) setIconosDisponibles(resIconos.data);
       if (resMP.data) setMateriaPrima(resMP.data);
       if (resUsuarios.data) setUsuariosSistema(resUsuarios.data);
 
-      if (resOrdenesHoy.data) {
-        const totalVentas = resOrdenesHoy.data.reduce((acc, curr) => acc + Number(curr.total_usd || 0), 0);
-        setStats(prev => ({
-          ...prev,
-          ventasHoy: totalVentas,
-          totalFacturas: resOrdenesHoy.count || resOrdenesHoy.data.length
-        }));
-      }
-
-      if (resDetallesOrdenes.data) {
-        const ventasPorProd = {};
-        resDetallesOrdenes.data.forEach(item => {
-          if (!item.producto) return;
-          const id = item.producto.id_producto;
-          const nombre = item.producto.nombre;
-          const simbolo = item.producto.icono_producto?.simbolo || '📦';
-          const cantidad = Number(item.cantidad || 0);
-
-          if (!ventasPorProd[id]) {
-            ventasPorProd[id] = { id, nombre, simbolo, totalCantidad: 0 };
-          }
-          ventasPorProd[id].totalCantidad += cantidad;
-        });
-
-        const topProductos = Object.values(ventasPorProd)
-          .sort((a, b) => b.totalCantidad - a.totalCantidad)
-          .slice(0, 3);
-
-        setProductosMasVendidos(topProductos);
-      }
+      let cajaAbiertaId = null;
 
       if (resCajas.data) {
         setHistorialCajas(resCajas.data);
+        
+        const cajaActiva = resCajas.data.find(c => c.status?.toLowerCase() === 'abierto');
+        if (cajaActiva) cajaAbiertaId = cajaActiva.id_caja;
+        setCajaAbiertaIdGlobal(cajaAbiertaId);
+
         let ingresosUSD = 0, ingresosBs = 0, descuadresUSD = 0, descuadresBs = 0, turnos = 0;
 
         resCajas.data.forEach(caja => {
@@ -208,6 +195,25 @@ export function useAdmin() {
         setStatsCaja({ ingresosUSD, ingresosBs, descuadreUSD: descuadresUSD, descuadreBs: descuadresBs, turnosCerrados: turnos });
       }
 
+      if (resOrdenesHoy.data) {
+        setOrdenesHoyRaw(resOrdenesHoy.data);
+        const ordenesTurnoActual = cajaAbiertaId 
+          ? resOrdenesHoy.data.filter(o => o.id_caja === cajaAbiertaId)
+          : [];
+
+        const totalVentas = ordenesTurnoActual.reduce((acc, curr) => acc + Number(curr.total_usd || 0), 0);
+        
+        setStats(prev => ({
+          ...prev,
+          ventasHoy: totalVentas,
+          totalFacturas: ordenesTurnoActual.length
+        }));
+      }
+
+      if (resDetallesOrdenes.data) {
+        setDetallesOrdenesRaw(resDetallesOrdenes.data);
+      }
+
     } catch (error) {
       mostrarMensaje('Hubo un problema al cargar la información. Por favor, recarga la página.', 'error');
     } finally {
@@ -227,7 +233,6 @@ export function useAdmin() {
   const handleCrearProducto = async (e) => {
     e.preventDefault();
     try {
-      // Buscar el objeto categoría correspondiente al ID seleccionado
       const catSeleccionada = categorias.find(c => c.id_categoria === Number(nuevoProd.id_categoria));
       const nombreCat = catSeleccionada ? catSeleccionada.nombre : '';
       
@@ -425,20 +430,17 @@ export function useAdmin() {
   const eliminarOrden = async () => {
     if (!ordenAEliminar) return;
     try {
-      // 1. Devolver el stock al inventario
       if (ordenAEliminar.detalle_orden) {
         for (const det of ordenAEliminar.detalle_orden) {
           const { data: prod } = await supabase.from('producto').select('stock').eq('id_producto', det.producto.id_producto).single();
           
           if (prod) {
             const nuevoStock = prod.stock + Number(det.cantidad);
-            // Actualizar stock
             await supabase.from('producto').update({ stock: nuevoStock }).eq('id_producto', det.producto.id_producto);
-            // Registrar movimiento de entrada en el historial
             await supabase.from('inventario_producto').insert([{
               id_producto: det.producto.id_producto,
               id_usuario: usuario.id_usuario,
-              id_registro: 1, // 1 = Entrada
+              id_registro: 1,
               cantidad: det.cantidad,
               descripcion: `Devolución por orden eliminada (Ticket #${ordenAEliminar.num_ticket})`
             }]);
@@ -446,7 +448,6 @@ export function useAdmin() {
         }
       }
 
-      // 2. Eliminar de la base de datos (El orden importa si no tienes "Borrado en Cascada" activado en Supabase)
       await supabase.from('pago_orden').delete().eq('id_orden', ordenAEliminar.id_orden);
       await supabase.from('detalle_orden').delete().eq('id_orden', ordenAEliminar.id_orden);
       const { error } = await supabase.from('orden').delete().eq('id_orden', ordenAEliminar.id_orden);
@@ -456,9 +457,8 @@ export function useAdmin() {
       mostrarMensaje('🗑️ Orden eliminada y stock devuelto exitosamente.');
       setOrdenAEliminar(null);
       
-      // Actualizar la lista del modal actual
       if (cajaSeleccionada) handleVerDetallesCaja(cajaSeleccionada);
-      inicializarAdmin(); // Actualizar dashboard
+      inicializarAdmin();
 
     } catch (err) {
       console.error(err);
@@ -496,6 +496,39 @@ export function useAdmin() {
       return true;
     });
   }, [historialCajas, tipoFiltro, fechaInicio, fechaFin]);
+
+  const productosMasVendidos = useMemo(() => {
+    if (!detallesOrdenesRaw || detallesOrdenesRaw.length === 0) return [];
+
+    let detallesAProcesar = detallesOrdenesRaw;
+
+    if (filtroMasVendidos === 'turno') {
+      const idsOrdenesTurno = new Set(
+        ordenesHoyRaw
+          .filter(o => o.id_caja === cajaAbiertaIdGlobal)
+          .map(o => o.id_orden)
+      );
+      detallesAProcesar = detallesOrdenesRaw.filter(item => idsOrdenesTurno.has(item.id_orden));
+    }
+
+    const ventasPorProd = {};
+    detallesAProcesar.forEach(item => {
+      if (!item.producto) return;
+      const id = item.producto.id_producto;
+      const nombre = item.producto.nombre;
+      const simbolo = item.producto.icono_producto?.simbolo || '📦';
+      const cantidad = Number(item.cantidad || 0);
+
+      if (!ventasPorProd[id]) {
+        ventasPorProd[id] = { id, nombre, simbolo, totalCantidad: 0 };
+      }
+      ventasPorProd[id].totalCantidad += cantidad;
+    });
+
+    return Object.values(ventasPorProd)
+      .sort((a, b) => b.totalCantidad - a.totalCantidad)
+      .slice(0, 5);
+  }, [detallesOrdenesRaw, ordenesHoyRaw, cajaAbiertaIdGlobal, filtroMasVendidos]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -549,6 +582,7 @@ export function useAdmin() {
     tipoFiltro, setTipoFiltro, fechaInicio, setFechaInicio, fechaFin, setFechaFin,
     showModalDetallesCaja, setShowModalDetallesCaja, cajaSeleccionada, ordenesCaja, cargandoOrdenes,
     notificacion, handleCrearProducto, handleActualizarProducto, handleArchivarProducto, handleCrearMateriaPrima,
-    handleActualizarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja
+    handleActualizarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja,
+    filtroMasVendidos, setFiltroMasVendidos
   };
 }

@@ -13,6 +13,7 @@ import ModalCrearMateriaPrima from '@/app/admin/modals/modalCrearMateriaPrima';
 import ModalEditarMateriaPrima from '@/app/admin/modals/modalEditarMateriaPrima';
 import ModalTasaBCV from '@/app/admin/modals/modalTasaBCV';
 import ModalDetallesCaja from '@/app/admin/modals/modalDetallesCaja';
+import { LogOut } from 'lucide-react'; 
 
 export default function AdminDashboardPage() {
   const h = useAdmin();
@@ -55,11 +56,13 @@ export default function AdminDashboardPage() {
             <span className="font-bold text-white truncate max-w-[150px] inline-block align-bottom">{h.usuario?.email}</span>
           </div>
 
+          {/* Botón: Cerrar Sesión Estilizado */}
           <button
             onClick={h.handleLogout}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer"
+            title="Cerrar Sesión"
+            className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-600/30 rounded-xl transition-all cursor-pointer shadow-sm group flex items-center justify-center"
           >
-            Cerrar Sesión
+            <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" strokeWidth={1.5}/>
           </button>
         </div>
       </header>
@@ -89,6 +92,8 @@ export default function AdminDashboardPage() {
                 alert("No hay un turno de caja abierto en este momento.");
               }
             }}
+            filtroMasVendidos={h.filtroMasVendidos}
+            setFiltroMasVendidos={h.setFiltroMasVendidos}
           />
         )}
 
