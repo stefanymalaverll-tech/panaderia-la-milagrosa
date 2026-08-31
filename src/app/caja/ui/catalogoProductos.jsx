@@ -1,3 +1,5 @@
+import { verificarEsPanaderia } from '@/lib/utils';
+
 export default function CatalogoProductos({ caja }) {
   const {
     tipoPrecio, setTipoPrecio,
@@ -44,21 +46,22 @@ export default function CatalogoProductos({ caja }) {
               precioMostrarBs = precioMostrarUSD * tasaBCV;
             }
 
+            const esPanaderia = verificarEsPanaderia(prod.categoria?.nombre);
             const itemEnCarrito = caja.carrito.find(item => item.id_producto === prod.id_producto);
             const cantidadEnCarrito = itemEnCarrito ? Number(itemEnCarrito.cantidad) : 0;
-            const stockRestante = Number((Number(prod.stock) - cantidadEnCarrito).toFixed(2)); 
-            const sinStock = stockRestante <= 0;
+            
+            const stockRestante = esPanaderia ? 999 : Number((Number(prod.stock) - cantidadEnCarrito).toFixed(2)); 
+            const sinStock = !esPanaderia && stockRestante <= 0;
 
             return (
               <button
                 key={prod.id_producto}
                 onClick={() => {
-                  if (!sinStock) agregarAlCarrito(prod);
+                  if (esPanaderia || !sinStock) agregarAlCarrito(prod);
                 }}
-                disabled={sinStock}
-                // Si no hay stock, opacamos el botón y evitamos clicks
+                disabled={!esPanaderia && sinStock}
                 className={`border bg-slate-50 rounded-2xl text-left flex flex-col justify-between p-2.5 md:p-3 transition-all ${
-                  sinStock 
+                  (!esPanaderia && sinStock) 
                     ? 'opacity-40 border-slate-200 cursor-not-allowed grayscale' 
                     : 'border-slate-200 hover:bg-amber-50/40 hover:border-amber-400 hover:shadow-md cursor-pointer group active:scale-95'
                 }`}
@@ -69,14 +72,16 @@ export default function CatalogoProductos({ caja }) {
                       {prod.icono_producto?.simbolo || '📦'}
                     </span>
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg border transition-colors ${
-                      stockRestante <= 5 
-                        ? 'bg-red-50 text-red-700 border-red-200' 
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      esPanaderia 
+                        ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                        : stockRestante <= 5 
+                          ? 'bg-red-50 text-red-700 border-red-200' 
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                     }`}>
-                      {sinStock ? 'Agotado' : `Stock: ${stockRestante}`}
+                      {esPanaderia ? 'Disponible' : (sinStock ? 'Agotado' : `Stock: ${stockRestante}`)}
                     </span>
                   </div>
-                  <h3 className={`font-bold text-xs leading-snug line-clamp-2 ${sinStock ? 'text-slate-600' : 'text-slate-900 group-hover:text-amber-700'}`}>
+                  <h3 className={`font-bold text-xs leading-snug line-clamp-2 ${(!esPanaderia && sinStock) ? 'text-slate-600' : 'text-slate-900 group-hover:text-amber-700'}`}>
                     {prod.nombre}
                   </h3>
                 </div>

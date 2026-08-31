@@ -11,6 +11,9 @@ export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ord
           <div>
             <h3 className="text-lg font-bold text-slate-800">🧾 Desglose del Turno #{cajaSeleccionada?.id_caja}</h3>
             <p className="text-xs text-slate-500 mt-1">Cajero: <span className="font-bold">{cajaSeleccionada?.usuario?.nombre || 'Desconocido'}</span></p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {ordenesCaja.length} {ordenesCaja.length === 1 ? 'ticket registrado' : 'tickets registrados'} en este turno
+            </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-xl cursor-pointer">✕</button>
         </div>
@@ -77,7 +80,7 @@ export default function ModalDetallesCaja({ show, onClose, cajaSeleccionada, ord
                             <span className="text-slate-400 font-bold">{Number(detalle.cantidad)}x</span>
                             <span className="font-medium text-slate-700">{detalle.producto?.icono_producto?.simbolo || '📦'} {detalle.producto?.nombre}</span>
                           </div>
-                          <span className="text-slate-600 font-semibold">${Number(detalle.subtotal_usd).toFixed(2)}</span>
+                          <span className="text-slate-600 font-semibold">Bs. {Number(detalle.subtotal_bs || (detalle.subtotal_usd * (orden.total_bs / orden.total_usd))).toFixed(2)}</span>
                         </li>
                       ))}
                     </ul>

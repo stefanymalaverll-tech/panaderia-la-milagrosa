@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { verificarEsPanaderia } from '@/lib/utils';
 
-// Función auxiliar fuera del componente para evitar recrearla en cada iteración
 const getPrecios = (precioUSD, precioBs, monedaBase, valorTasa) => {
   const esBaseBs = monedaBase === 'Bs' || monedaBase === 'BS';
   if (esBaseBs && Number(precioBs) > 0) {
@@ -123,8 +123,11 @@ export default function InventarioView({
                 const mayor = getPrecios(prod.precio_mayor, prod.precio_mayor_bs, prod.moneda_base, valorTasa);
                 const esActivo = prod.activo !== false && prod.activo !== 0;
 
+                // Detectar si es Panadería
+                const catObj = categorias.find(c => Number(c.id_categoria) === Number(prod.id_categoria));
+                const nombreCat = (catObj?.nombre || '').toLowerCase();
+                const esPanaderia = verificarEsPanaderia(nombreCat);
                 return (
-                  // Le quitamos la opacidad general al <tr> y la cambiamos por un fondo más gris si está archivado
                   <tr key={prod.id_producto} className={`hover:bg-slate-50 transition-colors ${!esActivo ? 'bg-slate-50/50' : ''}`}>
                     <td className="p-3 text-center">
                       <div className="relative inline-block text-left">
@@ -142,8 +145,17 @@ export default function InventarioView({
                             <button 
                               onClick={() => { 
                                 setMenuAbierto(null);
-                                setProdEditando({ ...prod }); 
-                                setMonedaPreciosEdit({ inversion: 'USD', detal: 'USD', mayor: 'USD' }); 
+                                const esBs = prod.moneda_base === 'Bs' || prod.moneda_base === 'BS';
+                                setProdEditando({ 
+                                  ...prod,
+                                  precio_detal: esBs ? (prod.precio_detal_bs || prod.precio_detal) : prod.precio_detal,
+                                  precio_mayor: esBs ? (prod.precio_mayor_bs || prod.precio_mayor) : prod.precio_mayor
+                                }); 
+                                setMonedaPreciosEdit({ 
+                                  inversion: 'USD', 
+                                  detal: esBs ? 'BS' : 'USD', 
+                                  mayor: esBs ? 'BS' : 'USD' 
+                                }); 
                                 setShowModalEditarProd(true); 
                               }} 
                               className="text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-amber-600 transition-colors cursor-pointer"
@@ -198,8 +210,8 @@ export default function InventarioView({
                       <div className="text-xs text-slate-400">{mayor.secundario}</div>
                     </td>
                     
-                    <td className={`p-3 font-bold ${Number(prod.stock) < 5 ? (!esActivo ? 'text-red-400' : 'text-red-600') : (!esActivo ? 'text-amber-400' : 'text-amber-600')}`}>
-                      {prod.stock} unids.
+                    <td className={`p-3 font-bold ${esPanaderia ? 'text-slate-400 text-xs italic font-normal' : Number(prod.stock) < 5 ? (!esActivo ? 'text-red-400' : 'text-red-600') : (!esActivo ? 'text-amber-400' : 'text-amber-600')}`}>
+                      {esPanaderia ? 'No aplica' : `${prod.stock} unids.`}
                     </td>
                   </tr>
                 );

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { verificarEsPanaderia } from '@/lib/utils';
 
 export function useAdmin() {
   const router = useRouter();
@@ -226,13 +227,20 @@ export function useAdmin() {
   const handleCrearProducto = async (e) => {
     e.preventDefault();
     try {
+      // Buscar el objeto categoría correspondiente al ID seleccionado
+      const catSeleccionada = categorias.find(c => c.id_categoria === Number(nuevoProd.id_categoria));
+      const nombreCat = catSeleccionada ? catSeleccionada.nombre : '';
+      
+      const esPanaderia = verificarEsPanaderia(nombreCat);
+
       const esBaseBs = monedaPrecios.detal === 'BS';
       const productoFinal = {
         ...nuevoProd,
         moneda_base: esBaseBs ? 'Bs' : 'USD',
         precio_detal_bs: monedaPrecios.detal === 'BS' ? nuevoProd.precio_detal : 0,
         precio_mayor_bs: monedaPrecios.mayor === 'BS' ? nuevoProd.precio_mayor : 0,
-        precio_inversion: convertirAUSD(nuevoProd.precio_inversion, monedaPrecios.inversion),
+        precio_inversion: esPanaderia ? 0 : convertirAUSD(nuevoProd.precio_inversion, monedaPrecios.inversion),
+        stock: esPanaderia ? 0 : Number(nuevoProd.stock),
         precio_detal: convertirAUSD(nuevoProd.precio_detal, monedaPrecios.detal),
         precio_mayor: convertirAUSD(nuevoProd.precio_mayor, monedaPrecios.mayor),
       };
@@ -245,13 +253,15 @@ export function useAdmin() {
 
       if (error) throw error;
 
-      await supabase.from('inventario_producto').insert([{
-        id_producto: prodCreado.id_producto,
-        id_usuario: usuario.id_usuario,
-        id_registro: 1,
-        cantidad: nuevoProd.stock,
-        descripcion: 'Registro inicial de producto'
-      }]);
+      if (!esPanaderia) {
+        await supabase.from('inventario_producto').insert([{
+          id_producto: prodCreado.id_producto,
+          id_usuario: usuario.id_usuario,
+          id_registro: 1,
+          cantidad: nuevoProd.stock,
+          descripcion: 'Registro inicial de producto'
+        }]);
+      }
 
       mostrarMensaje('✅ Producto agregado exitosamente.');
       setShowModalProducto(false);

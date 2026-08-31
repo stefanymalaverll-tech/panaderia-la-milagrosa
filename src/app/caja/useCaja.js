@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { verificarEsPanaderia } from '@/lib/utils';
 
 export function useCaja() {
   const router = useRouter();
@@ -216,10 +217,12 @@ export function useCaja() {
       precioAplicadoBs = precioAplicadoUSD * tasaBCV;
     }
 
+    // Detectar si es panadería desde la categoría del producto
+    const esPanaderia = verificarEsPanaderia(prod.categoria?.nombre);
     const existe = carrito.find(item => item.id_producto === prod.id_producto);
 
     if (existe) {
-      if (existe.cantidad + 1 > prod.stock) {
+      if (!esPanaderia && existe.cantidad + 1 > prod.stock) {
         mostrarMensaje(`Atención: Solo quedan ${prod.stock} unidades disponibles.`, 'error');
         return;
       }
@@ -229,7 +232,8 @@ export function useCaja() {
     } else { 
       setCarrito([...carrito, { 
         id_producto: prod.id_producto, nombre: prod.nombre, precioUSD: precioAplicadoUSD, 
-        precioBs: precioAplicadoBs, cantidad: 1, stock_max: Number(prod.stock), moneda_base: prod.moneda_base 
+        precioBs: precioAplicadoBs, cantidad: 1, stock_max: Number(prod.stock), moneda_base: prod.moneda_base,
+        esPanaderia
       }]);
     }
   };
@@ -238,7 +242,10 @@ export function useCaja() {
     const cant = parseFloat(nuevaCant) || 0;
     setCarrito(carrito.map(item => {
       if (item.id_producto === id) {
-        if (cant > item.stock_max) { mostrarMensaje(`Stock máximo: ${item.stock_max}`); return item; }
+        if (!item.esPanaderia && cant > item.stock_max) { 
+          mostrarMensaje(`Stock máximo: ${item.stock_max}`); 
+          return item; 
+        }
         return { ...item, cantidad: cant };
       }
       return item;
@@ -314,7 +321,8 @@ export function useCaja() {
         subtotal_usd: Number((item.precioUSD * item.cantidad).toFixed(2)), 
         precio_unitario_bs: Number(item.precioBs.toFixed(2)),
         subtotal_bs: Number((item.precioBs * item.cantidad).toFixed(2)),
-        tipo_precio: tipoPrecio
+        tipo_precio: tipoPrecio,
+        es_panaderia: item.esPanaderia
       }));
 
       // AQUI ELIMINAMOS telefono_cliente Y cedula_cliente
