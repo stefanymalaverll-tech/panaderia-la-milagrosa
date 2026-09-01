@@ -57,6 +57,9 @@ export function useAdmin() {
   const [mpEditando, setMpEditando] = useState(null);
   const [monedaMPEdit, setMonedaMPEdit] = useState('USD');
 
+  // Modal para Registrar Compra (NUEVO)
+  const [showModalRegistroCompra, setShowModalRegistroCompra] = useState(false);
+
   // Modal para Editar Tasa BCV
   const [showModalTasa, setShowModalTasa] = useState(false);
   const [nuevaTasaInput, setNuevaTasaInput] = useState('');
@@ -135,7 +138,7 @@ export function useAdmin() {
         supabase.from('icono_producto').select('*'),
         supabase.from('materia_prima').select('*').order('nombre'),
         supabase.from('usuario').select('*'),
-        supabase.from('orden').select('total_usd, id_orden, id_caja').gte('hora_orden', new Date().toISOString().split('T')[0]),        
+        supabase.from('orden').select('total_usd, id_orden, id_caja').gte('hora_orden', new Date().toISOString().split('T')[0]),      
         supabase.from('detalle_orden').select('cantidad, id_orden, producto(id_producto, nombre, icono_producto(simbolo))'),
         supabase.from('caja').select('*, usuario(nombre), detalle_cierre_caja(monto_esperado, monto_contado, diferencia, pago(nombre, moneda))').order('hora_apertura', { ascending: false }).limit(20)
       ]);
@@ -220,6 +223,9 @@ export function useAdmin() {
       setLoading(false);
     }
   };
+
+  // Función alias para refrescar datos desde los modales (ej. después de registrar una compra)
+  const cargarDatos = inicializarAdmin;
 
   const handleCrearProducto = async (e) => {
     e.preventDefault();
@@ -369,6 +375,21 @@ export function useAdmin() {
       inicializarAdmin();
     } catch (err) {
       mostrarMensaje('❌ Error al actualizar materia prima. Intenta de nuevo.', 'error');
+    }
+  };
+
+  const handleArchivarMateriaPrima = async (id_materiaprima, estadoActual) => {
+    try {
+      const { error } = await supabase
+        .from('materia_prima')
+        .update({ activo: !estadoActual })
+        .eq('id_materiaprima', id_materiaprima);
+
+      if (error) throw error;
+      mostrarMensaje(!estadoActual ? '📂 Materia prima restaurada correctamente' : '📁 Materia prima archivada correctamente');
+      inicializarAdmin();
+    } catch (err) {
+      mostrarMensaje('❌ Error al cambiar el estado de la materia prima.', 'error');
     }
   };
 
@@ -540,12 +561,13 @@ export function useAdmin() {
     showModalEditarProd, setShowModalEditarProd, prodEditando, setProdEditando, monedaPreciosEdit, setMonedaPreciosEdit,
     showModalMP, setShowModalMP, monedaMP, setMonedaMP, nuevaMP, setNuevaMP,
     showModalEditarMP, setShowModalEditarMP, mpEditando, setMpEditando, monedaMPEdit, setMonedaMPEdit,
+    showModalRegistroCompra, setShowModalRegistroCompra,
     showModalTasa, setShowModalTasa, nuevaTasaInput, setNuevaTasaInput,
     eliminarOrden, ordenAEliminar, setOrdenAEliminar,
     tipoFiltro, setTipoFiltro, fechaInicio, setFechaInicio, fechaFin, setFechaFin,
     showModalDetallesCaja, setShowModalDetallesCaja, cajaSeleccionada, ordenesCaja, cargandoOrdenes,
     notificacion, handleCrearProducto, handleActualizarProducto, handleArchivarProducto, handleCrearMateriaPrima,
-    handleActualizarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja,
-    filtroMasVendidos, setFiltroMasVendidos
+    handleActualizarMateriaPrima, handleArchivarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja,
+    filtroMasVendidos, setFiltroMasVendidos, cargarDatos
   };
 }

@@ -8,6 +8,7 @@ import InventarioView from '@/app/admin/views/inventarioView';
 import MateriaPrimaView from '@/app/admin/views/materiaprimaView';
 import UsuarioView from '@/app/admin/views/usuarioView';
 import ModalCrearProducto from '@/app/admin/modals/modalCrearProducto';
+import ModalRegistroCompra from '@/app/admin/modals/modalRegistroCompra';
 import ModalEditarProducto from '@/app/admin/modals/modalEditarProducto';
 import ModalCrearMateriaPrima from '@/app/admin/modals/modalCrearMateriaPrima';
 import ModalEditarMateriaPrima from '@/app/admin/modals/modalEditarMateriaPrima';
@@ -112,7 +113,7 @@ export default function AdminDashboardPage() {
             productos={h.productos} categorias={h.categorias}
             filtroCategoria={h.filtroCategoria} setFiltroCategoria={h.setFiltroCategoria}
             busquedaProducto={h.busquedaProducto} setBusquedaProducto={h.setBusquedaProducto}
-            setShowModalProducto={h.setShowModalProducto} setProdEditando={h.setProdEditando}
+            setShowModalProducto={h.setShowModalProducto} setShowModalRegistroCompra={h.setShowModalRegistroCompra} setProdEditando={h.setProdEditando}
             setMonedaPreciosEdit={h.setMonedaPreciosEdit} setShowModalEditarProd={h.setShowModalEditarProd}
             handleArchivarProducto={h.handleArchivarProducto} tasa={h.tasaBCV}
           />
@@ -122,7 +123,7 @@ export default function AdminDashboardPage() {
           <MateriaPrimaView
             materiaPrima={h.materiaPrima} setShowModalMP={h.setShowModalMP}
             setMpEditando={h.setMpEditando} setMonedaMPEdit={h.setMonedaMPEdit}
-            setShowModalEditarMP={h.setShowModalEditarMP}
+            setShowModalEditarMP={h.setShowModalEditarMP} handleArchivarMateriaPrima={h.handleArchivarMateriaPrima} tasa={h.tasaBCV}
           />
         )}
 
@@ -132,10 +133,19 @@ export default function AdminDashboardPage() {
       </main>
 
       {/* MODALES */}
-      <ModalCrearProducto show={h.showModalProducto} onClose={() => h.setShowModalProducto(false)} onSubmit={h.handleCrearProducto} nuevoProd={h.nuevoProd} setNuevoProd={h.setNuevoProd} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPrecios={h.monedaPrecios} setMonedaPrecios={h.setMonedaPrecios} />
-      <ModalEditarProducto show={h.showModalEditarProd} onClose={() => h.setShowModalEditarProd(false)} onSubmit={h.handleActualizarProducto} prodEditando={h.prodEditando} setProdEditando={h.setProdEditando} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPreciosEdit={h.monedaPreciosEdit} setMonedaPreciosEdit={h.setMonedaPreciosEdit} />
-      <ModalCrearMateriaPrima show={h.showModalMP} onClose={() => h.setShowModalMP(false)} onSubmit={h.handleCrearMateriaPrima} nuevaMP={h.nuevaMP} setNuevaMP={h.setNuevaMP} monedaMP={h.monedaMP} setMonedaMP={h.setMonedaMP} />
-      <ModalEditarMateriaPrima show={h.showModalEditarMP} onClose={() => h.setShowModalEditarMP(false)} onSubmit={h.handleActualizarMateriaPrima} mpEditando={h.mpEditando} setMpEditando={h.setMpEditando} monedaMPEdit={h.monedaMPEdit} setMonedaMPEdit={h.setMonedaMPEdit} />
+      <ModalCrearProducto show={h.showModalProducto} onClose={() => h.setShowModalProducto(false)} onSubmit={h.handleCrearProducto} nuevoProd={h.nuevoProd} setNuevoProd={h.setNuevoProd} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPrecios={h.monedaPrecios} setMonedaPrecios={h.setMonedaPrecios} tasa={h.tasaBCV} />
+      <ModalRegistroCompra 
+        show={h.showModalRegistroCompra} 
+        onClose={() => h.setShowModalRegistroCompra(false)} 
+        usuarioActual={h.usuario} 
+        tasaBcv={h.tasaBCV} 
+        onCompraExitosa={() => {
+          h.cargarDatos?.();
+        }} 
+      />
+      <ModalEditarProducto show={h.showModalEditarProd} onClose={() => h.setShowModalEditarProd(false)} onSubmit={h.handleActualizarProducto} prodEditando={h.prodEditando} setProdEditando={h.setProdEditando} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPreciosEdit={h.monedaPreciosEdit} setMonedaPreciosEdit={h.setMonedaPreciosEdit} tasa={h.tasaBCV} />
+      <ModalCrearMateriaPrima show={h.showModalMP} onClose={() => h.setShowModalMP(false)} onSubmit={h.handleCrearMateriaPrima} nuevaMP={h.nuevaMP} setNuevaMP={h.setNuevaMP} monedaMP={h.monedaMP} setMonedaMP={h.setMonedaMP} tasa={h.tasaBCV}/>
+      <ModalEditarMateriaPrima show={h.showModalEditarMP} onClose={() => h.setShowModalEditarMP(false)} onSubmit={h.handleActualizarMateriaPrima} mpEditando={h.mpEditando} setMpEditando={h.setMpEditando} monedaMPEdit={h.monedaMPEdit} setMonedaMPEdit={h.setMonedaMPEdit} tasa={h.tasaBCV} />
       <ModalTasaBCV show={h.showModalTasa} onClose={() => h.setShowModalTasa(false)} onSubmit={h.handleActualizarTasa} nuevaTasaInput={h.nuevaTasaInput} setNuevaTasaInput={h.setNuevaTasaInput} />
       <ModalDetallesCaja show={h.showModalDetallesCaja} onClose={() => h.setShowModalDetallesCaja(false)} cajaSeleccionada={h.cajaSeleccionada} ordenesCaja={h.ordenesCaja} cargandoOrdenes={h.cargandoOrdenes} onEliminarOrden={h.setOrdenAEliminar} />
 

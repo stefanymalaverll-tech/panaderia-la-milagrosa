@@ -20,7 +20,7 @@ const getPrecios = (precioUSD, precioBs, monedaBase, valorTasa) => {
 export default function InventarioView({
   productos, categorias, filtroCategoria, setFiltroCategoria,
   busquedaProducto, setBusquedaProducto, setShowModalProducto,
-  setProdEditando, setMonedaPreciosEdit, setShowModalEditarProd,
+  setShowModalRegistroCompra, setProdEditando, setMonedaPreciosEdit, setShowModalEditarProd,
   handleArchivarProducto, tasa
 }) {
   const [menuAbierto, setMenuAbierto] = useState(null);
@@ -57,12 +57,21 @@ export default function InventarioView({
           )}
         </div>
 
-        <button 
-          onClick={() => setShowModalProducto(true)} 
-          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm"
-        >
-          + Nuevo Producto
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowModalRegistroCompra(true)} 
+            className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+          >
+            📦 Registrar Compra
+          </button>
+
+          <button 
+            onClick={() => setShowModalProducto(true)} 
+            className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm"
+          >
+            + Nuevo Producto
+          </button>
+        </div>
       </div>
 
       {/* 🔍 Controles de búsqueda y filtros */}
@@ -196,8 +205,14 @@ export default function InventarioView({
                     </td>
                     
                     <td className="p-3">
-                      <div className={`font-semibold ${!esActivo ? 'text-slate-400' : 'text-slate-800'}`}>{inv.principal}</div>
-                      <div className="text-xs text-slate-400">{inv.secundario}</div>
+                      {esPanaderia ? (
+                        <span className="text-slate-400 text-xs italic text-center">-</span>
+                      ) : (
+                        <>
+                          <div className={`font-semibold ${!esActivo ? 'text-slate-400' : 'text-slate-800'}`}>{inv.principal}</div>
+                          <div className="text-xs text-slate-400">{inv.secundario}</div>
+                        </>
+                      )}
                     </td>
                     
                     <td className="p-3">
