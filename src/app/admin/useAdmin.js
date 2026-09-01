@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { verificarEsPanaderia } from '@/lib/utils';
+import { verificarEsPanaderia, convertirAUSD, prepararDatosProducto } from '@/lib/utils';
 
 export function useAdmin() {
   const router = useRouter();
@@ -221,34 +221,10 @@ export function useAdmin() {
     }
   };
 
-  const convertirAUSD = (valor, moneda) => {
-    const num = Number(valor) || 0;
-    if (moneda === 'BS') {
-      if (tasaBCV <= 0) return num;
-      return num / tasaBCV;
-    }
-    return num;
-  };
-
   const handleCrearProducto = async (e) => {
     e.preventDefault();
     try {
-      const catSeleccionada = categorias.find(c => c.id_categoria === Number(nuevoProd.id_categoria));
-      const nombreCat = catSeleccionada ? catSeleccionada.nombre : '';
-      
-      const esPanaderia = verificarEsPanaderia(nombreCat);
-
-      const esBaseBs = monedaPrecios.detal === 'BS';
-      const productoFinal = {
-        ...nuevoProd,
-        moneda_base: esBaseBs ? 'Bs' : 'USD',
-        precio_detal_bs: monedaPrecios.detal === 'BS' ? nuevoProd.precio_detal : 0,
-        precio_mayor_bs: monedaPrecios.mayor === 'BS' ? nuevoProd.precio_mayor : 0,
-        precio_inversion: esPanaderia ? 0 : convertirAUSD(nuevoProd.precio_inversion, monedaPrecios.inversion),
-        stock: esPanaderia ? 0 : Number(nuevoProd.stock),
-        precio_detal: convertirAUSD(nuevoProd.precio_detal, monedaPrecios.detal),
-        precio_mayor: convertirAUSD(nuevoProd.precio_mayor, monedaPrecios.mayor),
-      };
+      const { productoFinal, esPanaderia } = prepararDatosProducto(nuevoProd, monedaPrecios, categorias, tasaBCV);
 
       const { data: prodCreado, error } = await supabase
         .from('producto')
@@ -281,23 +257,10 @@ export function useAdmin() {
     e.preventDefault();
     if (!prodEditando) return;
     try {
-      const esBaseBs = monedaPreciosEdit.detal === 'BS';
-      const productoActualizado = {
-        nombre: prodEditando.nombre,
-        id_categoria: prodEditando.id_categoria,
-        id_icono: prodEditando.id_icono,
-        stock: prodEditando.stock,
-        cant_min_mayor: prodEditando.cant_min_mayor,
-        moneda_base: esBaseBs ? 'Bs' : 'USD',
-        precio_detal_bs: monedaPreciosEdit.detal === 'BS' ? prodEditando.precio_detal : 0,
-        precio_mayor_bs: monedaPreciosEdit.mayor === 'BS' ? prodEditando.precio_mayor : 0,
-        precio_inversion: convertirAUSD(prodEditando.precio_inversion, monedaPreciosEdit.inversion),
-        precio_detal: convertirAUSD(prodEditando.precio_detal, monedaPreciosEdit.detal),
-        precio_mayor: convertirAUSD(prodEditando.precio_mayor, monedaPreciosEdit.mayor),
-      };
+      const { productoFinal } = prepararDatosProducto(prodEditando, monedaPreciosEdit, categorias, tasaBCV);
 
-      if (prodEditando.stock !== productoActualizado.stock) {
-        const diferenciaStock = productoActualizado.stock - prodEditando.stock;
+      if (prodEditando.stock !== productoFinal.stock) {
+        const diferenciaStock = productoFinal.stock - prodEditando.stock;
         await supabase.from('inventario_producto').insert([{
           id_producto: prodEditando.id_producto,
           id_usuario: usuario.id_usuario,
@@ -309,7 +272,7 @@ export function useAdmin() {
 
       const { error } = await supabase
         .from('producto')
-        .update(productoActualizado)
+        .update(productoFinal)
         .eq('id_producto', prodEditando.id_producto);
 
       if (error) throw error;
