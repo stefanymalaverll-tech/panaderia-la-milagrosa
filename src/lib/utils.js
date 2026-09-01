@@ -1,67 +1,88 @@
+// Helper interno para garantizar siempre un número válido en JS
+const parseNum = (val, def = 0) => {
+  if (val === null || val === undefined || val === '') return def;
+  const num = parseFloat(val);
+  return isNaN(num) ? def : num;
+};
+
 export const verificarEsPanaderia = (nombreCategoria) => {
   if (!nombreCategoria) return false;
   const nombre = nombreCategoria.toLowerCase();
-  return nombre.includes('panadería') || 
-         nombre.includes('panaderia') || 
-         nombre.includes('pan') || 
-         nombre.includes('pastelería') || 
-         nombre.includes('pasteleria') || 
-         nombre.includes('pastel') || 
-         nombre.includes('postre');
+  return (
+    nombre.includes('panadería') ||
+    nombre.includes('panaderia') ||
+    nombre.includes('pan') ||
+    nombre.includes('pastelería') ||
+    nombre.includes('pasteleria') ||
+    nombre.includes('pastel') ||
+    nombre.includes('postre')
+  );
 };
 
 export const convertirAUSD = (valor, moneda, tasaBCV) => {
-  const num = Number(valor) || 0;
+  const num = parseNum(valor, 0);
   if (moneda === 'BS') {
-    if (tasaBCV <= 0) return num;
-    return num / tasaBCV;
+    const tasa = parseNum(tasaBCV, 1);
+    if (tasa <= 0) return num;
+    return num / tasa;
   }
   return num;
 };
 
 export const prepararDatosProducto = (prodData, monedaPrecios, categorias, tasaBCV) => {
-  const catSeleccionada = categorias.find(c => c.id_categoria === Number(prodData.id_categoria));
+  const catSeleccionada = categorias.find(c => Number(c.id_categoria) === Number(prodData.id_categoria));
   const nombreCat = catSeleccionada ? catSeleccionada.nombre : '';
   const esPanaderia = verificarEsPanaderia(nombreCat);
-  const esBaseBs = monedaPrecios.detal === 'BS';
+  const tasa = parseNum(tasaBCV, 1);
+
+  // Precios principales convertidos a USD (la DB almacena precios base en USD)
+  const precioDetalUSD = convertirAUSD(prodData.precio_detal, monedaPrecios.detal, tasa);
+  const precioMayorUSD = esPanaderia ? convertirAUSD(prodData.precio_mayor, monedaPrecios.mayor, tasa) : 0;
+  const precioInversionUSD = esPanaderia ? 0 : convertirAUSD(prodData.precio_inversion, monedaPrecios.inversion || 'BS', tasa);
+
+  // Cálculo explícito de los equivalentes en Bolívares
+  const precioDetalBs = monedaPrecios.detal === 'BS' 
+    ? parseNum(prodData.precio_detal, 0) 
+    : precioDetalUSD * tasa;
+
+  const precioMayorBs = esPanaderia 
+    ? (monedaPrecios.mayor === 'BS' ? parseNum(prodData.precio_mayor, 0) : precioMayorUSD * tasa)
+    : 0;
 
   const productoFinal = {
-    ...prodData,
-    moneda_base: esBaseBs ? 'Bs' : 'USD',
-    precio_detal_bs: monedaPrecios.detal === 'BS' ? prodData.precio_detal : 0,
-    precio_mayor_bs: monedaPrecios.mayor === 'BS' ? prodData.precio_mayor : 0,
-    precio_inversion: esPanaderia ? 0 : convertirAUSD(prodData.precio_inversion, monedaPrecios.inversion, tasaBCV),
-    stock: esPanaderia ? 0 : Number(prodData.stock),
-    precio_detal: convertirAUSD(prodData.precio_detal, monedaPrecios.detal, tasaBCV),
-    precio_mayor: convertirAUSD(prodData.precio_mayor, monedaPrecios.mayor, tasaBCV),
+    nombre: String(prodData.nombre || '').trim(),
+    id_categoria: Number(prodData.id_categoria) || 0,
+    id_icono: Number(prodData.id_icono) || 1,
+    moneda_base: monedaPrecios.detal === 'BS' ? 'Bs' : 'USD',
+    precio_inversion: Number(precioInversionUSD.toFixed(2)),
+    precio_detal: Number(precioDetalUSD.toFixed(2)),
+    precio_mayor: Number(precioMayorUSD.toFixed(2)),
+    precio_detal_bs: Number(precioDetalBs.toFixed(2)),
+    precio_mayor_bs: Number(precioMayorBs.toFixed(2)),
+    stock: esPanaderia ? 0 : parseNum(prodData.stock, 0),
+    cant_min_mayor: esPanaderia ? parseNum(prodData.cant_min_mayor, 10) : 0,
+    activo: true
   };
 
   return { productoFinal, esPanaderia };
 };
 
 export const calcularPreciosPorMargen = (montoInversion, mDetal, mMayor, monedaPrecios, tasa) => {
-  if (!montoInversion || montoInversion === '') {
-    return { precio_detal: '', precio_mayor: '' };
+  const num = parseNum(montoInversion, 0);
+  if (num <= 0 || num > 999999.99) {
+    return { precio_detal: '0.00', precio_mayor: '0.00' };
   }
 
-  const num = parseFloat(montoInversion);
-  if (isNaN(num) || num > 999999.99) {
-    return { precio_detal: '', precio_mayor: '' };
-  }
+  const margenD = parseNum(mDetal, 0);
+  const margenM = parseNum(mMayor, 0);
 
-  // Cálculo basado en el margen sobre el precio de venta final (Costo / (1 - margen/100))
-  // Se incluye una validación básica para evitar divisiones por cero o negativos si el margen es 100 o más.
-  let calcDetal = mDetal < 100 ? num / (1 - (mDetal / 100)) : num;
-  let calcMayor = mMayor < 100 ? num / (1 - (mMayor / 100)) : num;
+  let calcDetal = margenD < 100 ? num / (1 - (margenD / 100)) : num;
+  let calcMayor = margenM < 100 ? num / (1 - (margenM / 100)) : num;
 
-  // Si la moneda de venta seleccionada es USD, se toma el precio en Bs y se divide entre la tasa
-  if (tasa && tasa > 0) {
-    if (monedaPrecios.detal === 'USD') {
-      calcDetal /= tasa;
-    }
-    if (monedaPrecios.mayor === 'USD') {
-      calcMayor /= tasa;
-    }
+  const tasaBCV = parseNum(tasa, 1);
+  if (tasaBCV > 0) {
+    if (monedaPrecios?.detal === 'USD') calcDetal /= tasaBCV;
+    if (monedaPrecios?.mayor === 'USD') calcMayor /= tasaBCV;
   }
 
   return {
@@ -72,9 +93,9 @@ export const calcularPreciosPorMargen = (montoInversion, mDetal, mMayor, monedaP
 
 export const manejarCambioNumero = (e, maxVal = 999999.99, esEntero = false) => {
   const val = e.target.value;
-  if (val === '') return '';
-  if (val.toLowerCase().includes('e')) return null;
+  if (val === '') return '0';
+  if (val.toLowerCase().includes('e')) return '0';
   const num = esEntero ? parseInt(val, 10) : parseFloat(val);
-  if (isNaN(num) || num > maxVal) return null;
+  if (isNaN(num) || num > maxVal) return '0';
   return val;
 };

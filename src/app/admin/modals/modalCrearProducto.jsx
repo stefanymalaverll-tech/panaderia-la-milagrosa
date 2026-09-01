@@ -4,32 +4,28 @@ import { verificarEsPanaderia, calcularPreciosPorMargen } from '@/lib/utils';
 export default function ModalCrearProducto({
   show, onClose, onSubmit, nuevoProd, setNuevoProd, categorias, iconosDisponibles, monedaPrecios, setMonedaPrecios, tasa
 }) {
-  // Estado para controlar el porcentaje de ganancia al detal (por defecto 30%)
   const [margenDetal, setMargenDetal] = useState(30);
 
   if (!show) return null;
 
-  // Detectar si la categoría seleccionada es Panadería o Pastelería
-  const categoriaActual = categorias.find(c => c.id_categoria === Number(nuevoProd.id_categoria));
+  const categoriaActual = categorias.find(c => Number(c.id_categoria) === Number(nuevoProd.id_categoria));
   const nombreCat = categoriaActual?.nombre?.toLowerCase() || '';
   const esPanaderia = verificarEsPanaderia(nombreCat);
 
-  // Manejador para productos de reventa (calcula precio detal basado en inversión y margen)
   const actualizarConNuevosPrecios = (inversion, mDetal, moneda) => {
-    // Para productos normales, solo usamos margen detal (margen mayor = 0)
     const precios = calcularPreciosPorMargen(inversion, mDetal, 0, moneda, tasa);
     setNuevoProd(prev => ({
       ...prev,
       precio_inversion: inversion,
       precio_detal: precios.precio_detal,
-      precio_mayor: '' // No aplica precio mayor para productos que no son de panadería
+      precio_mayor: '0.00'
     }));
   };
 
   const handleInversionChange = (e) => {
     const val = e.target.value;
     if (val === '') {
-      setNuevoProd({ ...nuevoProd, precio_inversion: '', precio_detal: '', precio_mayor: '' });
+      setNuevoProd(prev => ({ ...prev, precio_inversion: '', precio_detal: '0.00', precio_mayor: '0.00' }));
       return;
     }
     if (!val.toLowerCase().includes('e')) {
@@ -62,7 +58,7 @@ export default function ModalCrearProducto({
             <input 
               type="text" required 
               placeholder={esPanaderia ? "Ej. Pan Canilla" : "Ej. Refresco 2L"} 
-              value={nuevoProd.nombre} 
+              value={nuevoProd.nombre || ''} 
               onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})} 
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 
             />
@@ -72,7 +68,7 @@ export default function ModalCrearProducto({
             <div>
               <label className="text-xs font-semibold text-slate-600">Categoría</label>
               <select 
-                value={nuevoProd.id_categoria} 
+                value={nuevoProd.id_categoria || ''} 
                 onChange={e => setNuevoProd({...nuevoProd, id_categoria: Number(e.target.value)})} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -82,7 +78,7 @@ export default function ModalCrearProducto({
             <div>
               <label className="text-xs font-semibold text-slate-600">Ícono</label>
               <select 
-                value={nuevoProd.id_icono} 
+                value={nuevoProd.id_icono || 1} 
                 onChange={e => setNuevoProd({...nuevoProd, id_icono: Number(e.target.value)})} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base mt-1 text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -91,7 +87,6 @@ export default function ModalCrearProducto({
             </div>
           </div>
 
-          {/* SECCIÓN DE INVERSIÓN Y MARGEN - Solo visible si NO es panadería/pastelería */}
           {!esPanaderia && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
               <div>
@@ -99,7 +94,7 @@ export default function ModalCrearProducto({
                 <div className="relative mt-1">
                   <input 
                     id="precio_inversion" name="precio_inversion" type="number" step="0.01" min="0" max="999999.99" required
-                    value={nuevoProd.precio_inversion} 
+                    value={nuevoProd.precio_inversion ?? ''} 
                     onChange={handleInversionChange} 
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()} 
                     placeholder="0.00"
@@ -115,15 +110,9 @@ export default function ModalCrearProducto({
                 </label>
                 <div className="relative mt-1">
                   <input
-                    id="margen_detal" 
-                    name="margen_detal" 
-                    type="number"
-                    min="0" 
-                    max="100" 
-                    step="1"
+                    id="margen_detal" name="margen_detal" type="number" min="0" max="100" step="1"
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                    placeholder="30" 
-                    required 
+                    placeholder="30" required 
                     value={margenDetal} 
                     onChange={handleMargenDetalChange}
                     className="w-full bg-white border border-slate-200 rounded-lg px-7 py-1.5 text-xs font-semibold text-slate-700 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" 
@@ -134,7 +123,6 @@ export default function ModalCrearProducto({
             </div>
           )}
 
-          {/* Precio Detal (Para todos los productos) */}
           <div>
             <div className="flex justify-between items-center">
               <label className="text-xs font-semibold text-slate-600">Precio De Venta</label>
@@ -146,12 +134,10 @@ export default function ModalCrearProducto({
             <div className="relative mt-1">
               <input 
                 id="precio_detal" name="precio_detal" type="number" step="0.01" min="0" max="999999.99" placeholder="0.00" required 
-                value={nuevoProd.precio_detal} 
+                value={nuevoProd.precio_detal ?? ''} 
                 onChange={e => {
                   const val = e.target.value;
-                  if (val === '') return setNuevoProd({...nuevoProd, precio_detal: ''});
-                  const num = parseFloat(val);
-                  if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.99) setNuevoProd({...nuevoProd, precio_detal: val});
+                  setNuevoProd({...nuevoProd, precio_detal: val});
                 }} 
                 onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -162,7 +148,6 @@ export default function ModalCrearProducto({
             </div>
           </div>
 
-          {/* Precio Mayor y Cantidad Mínima - SOLO VISIBLES si ES Panadería o Pastelería */}
           {esPanaderia && (
             <>
               <div>
@@ -176,12 +161,10 @@ export default function ModalCrearProducto({
                 <div className="relative mt-1">
                   <input 
                     id="precio_mayor" name="precio_mayor" type="number" step="0.01" min="0" max="999999.99" placeholder="0.00" required={esPanaderia}
-                    value={nuevoProd.precio_mayor} 
+                    value={nuevoProd.precio_mayor ?? ''} 
                     onChange={e => {
                       const val = e.target.value;
-                      if (val === '') return setNuevoProd({...nuevoProd, precio_mayor: ''});
-                      const num = parseFloat(val);
-                      if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.99) setNuevoProd({...nuevoProd, precio_mayor: val});
+                      setNuevoProd({...nuevoProd, precio_mayor: val});
                     }} 
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -195,13 +178,11 @@ export default function ModalCrearProducto({
               <div>
                 <label className="text-xs font-semibold text-slate-600">Cantidad Mínima para Precio Mayor</label>
                 <input 
-                  id="min_mayor" name="min_mayor" type="number" step="1" min="0" max="999999" placeholder="0" required={esPanaderia}
-                  value={nuevoProd.cant_min_mayor || ''} 
+                  id="cant_min_mayor" name="cant_min_mayor" type="number" step="1" min="0" max="999999" placeholder="10" required={esPanaderia}
+                  value={nuevoProd.cant_min_mayor ?? ''} 
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === '') return setNuevoProd({...nuevoProd, cant_min_mayor: ''});
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999) setNuevoProd({...nuevoProd, cant_min_mayor: num});
+                    setNuevoProd({...nuevoProd, cant_min_mayor: val});
                   }} 
                   onKeyDown={e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()} 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-center mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -210,18 +191,15 @@ export default function ModalCrearProducto({
             </>
           )}
 
-          {/* Stock Inicial - Solo visible si NO es panadería */}
           {!esPanaderia && (
             <div>
-              <label className="text-xs font-semibold text-slate-600">Stock Total</label>
+              <label className="text-xs font-semibold text-slate-600">Stock Inicial</label>
               <input 
                 id="stock" name="stock" type="number" step="1" min="0" max="999999" placeholder="0" required={!esPanaderia}
-                value={nuevoProd.stock} 
+                value={nuevoProd.stock ?? ''} 
                 onChange={e => {
                   const val = e.target.value;
-                  if (val === '') return setNuevoProd({...nuevoProd, stock: ''});
-                  const num = parseInt(val, 10);
-                  if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999) setNuevoProd({...nuevoProd, stock: num});
+                  setNuevoProd({...nuevoProd, stock: val});
                 }} 
                 onKeyDown={e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-center mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 

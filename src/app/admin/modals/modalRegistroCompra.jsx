@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { verificarEsPanaderia } from '@/lib/utils';
+import { verificarEsPanaderia, calcularPreciosPorMargen } from '@/lib/utils';
+
+// Helper de seguridad numérica
+const parseSafeNum = (val, def = 0) => {
+  if (val === null || val === undefined || val === '') return def;
+  const parsed = parseFloat(val);
+  return isNaN(parsed) ? def : parsed;
+};
 
 export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasaBcv, onCompraExitosa }) {
   const [proveedor, setProveedor] = useState('');
@@ -12,7 +19,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
   const [materiasPrimasLista, setMateriasPrimasLista] = useState([]);
   
   const [itemsCompra, setItemsCompra] = useState([
-    { tipo: 'producto', id_item: '', cantidad: 1, costo_unitario: 0 }
+    { tipo: 'producto', id_item: '', cantidad: 1, costo_unitario: '' }
   ]);
   const [cargando, setCargando] = useState(false);
 
@@ -24,27 +31,22 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
   }, [show, tasaBcv]);
 
   const cargarCatalogos = async () => {
-    // 1. Cargar categorías para evaluar sus nombres
     const { data: cats } = await supabase
       .from('categoria')
       .select('id_categoria, nombre');
     const categoriasList = cats || [];
 
-    // 2. Cargar productos activos
     const { data: prods } = await supabase
       .from('producto')
-      .select('id_producto, nombre, stock, id_categoria')
+      .select('id_producto, nombre, stock, id_categoria, precio_inversion, precio_detal')
       .eq('activo', true);
     
-    // Filtrar usando la función verificarEsPanaderia para excluir lo que no sea reventa
     const productosFiltrados = (prods || []).filter(prod => {
-      const cat = categoriasList.find(c => c.id_categoria === Number(prod.id_categoria));
+      const cat = categoriasList.find(c => Number(c.id_categoria) === Number(prod.id_categoria));
       const nombreCat = cat ? cat.nombre : '';
-      // Si verificarEsPanaderia da true, significa que es producción propia/panadería, por lo que NO debe aparecer en compras de reventa
       return !verificarEsPanaderia(nombreCat);
     });
 
-    // 3. Cargar materias primas activas
     const { data: mps } = await supabase
       .from('materia_prima')
       .select('id_materiaprima, nombre, unidad, stock')
@@ -57,7 +59,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
   if (!show) return null;
 
   const agregarFila = () => {
-    setItemsCompra([...itemsCompra, { tipo: 'producto', id_item: '', cantidad: 1, costo_unitario: 0 }]);
+    setItemsCompra([...itemsCompra, { tipo: 'producto', id_item: '', cantidad: 1, costo_unitario: '' }]);
   };
 
   const actualizarFila = (index, campo, valor) => {
@@ -75,7 +77,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
 
   const calcularTotalGeneral = () => {
     return itemsCompra.reduce((acc, item) => {
-      return acc + (Number(item.cantidad) * Number(item.costo_unitario) || 0);
+      return acc + (parseSafeNum(item.cantidad, 0) * parseSafeNum(item.costo_unitario, 0));
     }, 0);
   };
 
@@ -92,18 +94,20 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
 
     setCargando(true);
     try {
-      const totalGastado = calcularTotalGeneral();
+      const tasaSegura = parseSafeNum(tasaAplicada, 1) || 1; 
+      const totalGastado = parseSafeNum(calcularTotalGeneral(), 0);
       const idUsuario = usuarioActual?.id_usuario || 1;
 
+      // 1. Registrar la compra general
       const { data: compraRes, error: errorCompra } = await supabase
         .from('compras')
         .insert([{
-          proveedor,
-          total_gastado: totalGastado,
+          proveedor: proveedor.trim(),
+          total_gastado: Number(totalGastado.toFixed(2)),
           moneda,
-          tasa_aplicada: Number(tasaAplicada),
-          id_usuario: idUsuario,
-          observaciones
+          tasa_aplicada: Number(tasaSegura.toFixed(2)),
+          id_usuario: Number(idUsuario),
+          observaciones: observaciones ? observaciones.trim() : null
         }])
         .select()
         .single();
@@ -111,19 +115,22 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
       if (errorCompra) throw errorCompra;
       const idCompra = compraRes.id_compra;
 
+      // 2. Procesar ítems e inventarios
       for (const item of itemsCompra) {
-        const subtotal = Number(item.cantidad) * Number(item.costo_unitario);
+        const cantidadSegura = parseSafeNum(item.cantidad, 0);
+        const costoUnitarioSeguro = parseSafeNum(item.costo_unitario, 0);
+        const subtotal = Number((cantidadSegura * costoUnitarioSeguro).toFixed(2));
         const isProducto = item.tipo === 'producto';
 
         const { error: errorDetalle } = await supabase
           .from('detalle_compra')
           .insert([{
-            id_compra: idCompra,
+            id_compra: Number(idCompra),
             tipo_item: item.tipo,
-            id_producto: isProducto ? item.id_item : null,
-            id_materiaprima: !isProducto ? item.id_item : null,
-            cantidad: Number(item.cantidad),
-            costo_unitario: Number(item.costo_unitario),
+            id_producto: isProducto ? Number(item.id_item) : null,
+            id_materiaprima: !isProducto ? Number(item.id_item) : null,
+            cantidad: Number(cantidadSegura.toFixed(2)),
+            costo_unitario: Number(costoUnitarioSeguro.toFixed(2)),
             subtotal
           }]);
 
@@ -131,32 +138,65 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
 
         if (isProducto) {
           const prodActual = productosLista.find(p => String(p.id_producto) === String(item.id_item));
-          const nuevoStock = Number(prodActual?.stock || 0) + Number(item.cantidad);
-          const costoEnUSD = moneda === 'Bs' ? Number(item.costo_unitario) / Number(tasaAplicada) : Number(item.costo_unitario);
+          const nuevoStock = parseSafeNum(prodActual?.stock, 0) + cantidadSegura;
+  
+          const costoAnterior = parseSafeNum(prodActual?.precio_inversion, 0);
+          const precioDetalAnterior = parseSafeNum(prodActual?.precio_detal, 0);
+  
+          // Obtener margen de ganancia histórico del producto o usar 30% por defecto
+          let margenDetalAplicado = 30;
+          if (costoAnterior > 0 && precioDetalAnterior > costoAnterior) {
+            margenDetalAplicado = Math.round(100 * (1 - (costoAnterior / precioDetalAnterior)));
+            if (margenDetalAplicado <= 0 || margenDetalAplicado >= 100) margenDetalAplicado = 30; 
+          }
 
+          // Pasar el costo unitario tal cual como fue ingresado en la moneda del formulario
+          // Si la factura está en Bs, indicamos que se desea la conversión equivalente para calcular el precio detal en USD
+          const configMoneda = moneda === 'Bs' 
+            ? { detal: 'USD', mayor: 'USD' } 
+            : { detal: 'BS', mayor: 'BS' };
+
+          const preciosCalculados = calcularPreciosPorMargen(
+            costoUnitarioSeguro,
+            margenDetalAplicado,
+            0,
+            configMoneda,
+            tasaSegura
+          );
+
+          // Determinar costo unitario base en USD para guardar en DB
+          const costoEnUSD = moneda === 'Bs' ? (costoUnitarioSeguro / tasaSegura) : costoUnitarioSeguro;
+          const nuevoPrecioDetalUSD = parseSafeNum(preciosCalculados.precio_detal, 0);
+          const nuevoPrecioDetalBs = nuevoPrecioDetalUSD * tasaSegura;
+
+          // Actualizar producto en la base de datos
           await supabase
             .from('producto')
             .update({ 
-              stock: nuevoStock,
-              precio_inversion: costoEnUSD 
+              stock: Number(nuevoStock.toFixed(2)),
+              precio_inversion: Number(costoEnUSD.toFixed(2)),
+              precio_detal: Number(nuevoPrecioDetalUSD.toFixed(2)),
+              precio_mayor: 0.00,
+              precio_detal_bs: Number(nuevoPrecioDetalBs.toFixed(2)),
+              precio_mayor_bs: 0.00
             })
-            .eq('id_producto', item.id_item);
-
+            .eq('id_producto', Number(item.id_item));
+            
         } else {
           const mpActual = materiasPrimasLista.find(m => String(m.id_materiaprima) === String(item.id_item));
-          const nuevoStockMP = Number(mpActual?.stock || 0) + Number(item.cantidad);
+          const nuevoStockMP = parseSafeNum(mpActual?.stock, 0) + cantidadSegura;
           
-          const costoEnBs = moneda === 'USD' ? Number(item.costo_unitario) * Number(tasaAplicada) : Number(item.costo_unitario);
-          const costoEnUSD = moneda === 'Bs' ? Number(item.costo_unitario) / Number(tasaAplicada) : Number(item.costo_unitario);
+          const costoEnBs = moneda === 'USD' ? (costoUnitarioSeguro * tasaSegura) : costoUnitarioSeguro;
+          const costoEnUSD = moneda === 'Bs' ? (costoUnitarioSeguro / tasaSegura) : costoUnitarioSeguro;
 
           await supabase
             .from('materia_prima')
             .update({ 
-              stock: nuevoStockMP,
-              costo: costoEnUSD,
-              costo_bs: costoEnBs
+              stock: Number(nuevoStockMP.toFixed(2)),
+              costo: Number(costoEnUSD.toFixed(2)),
+              costo_bs: Number(costoEnBs.toFixed(2))
             })
-            .eq('id_materiaprima', item.id_item);
+            .eq('id_materiaprima', Number(item.id_item));
         }
       }
 
@@ -207,9 +247,11 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
               <label className="block text-xs font-semibold text-slate-700 mb-1">Tasa Aplicada (BCV)</label>
               <input 
                 type="number" 
-                step="any"
-                value={tasaAplicada} 
+                step="0.01"
+                min="0.01"
+                value={tasaAplicada ?? ''} 
                 onChange={(e) => setTasaAplicada(e.target.value)} 
+                onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                 required
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
@@ -246,8 +288,8 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
                       onChange={(e) => actualizarFila(index, 'tipo', e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-medium"
                     >
-                      <option value="producto">Reventa</option>
-                      <option value="materia_prima">Materia Prima</option>
+                      <option value="producto">Venta</option>
+                      <option value="materia_prima">Producción</option>
                     </select>
                   </div>
 
@@ -273,23 +315,25 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, tasa
                       step="any"
                       min="0.001"
                       placeholder="Ej. 12"
-                      value={item.cantidad} 
+                      value={item.cantidad ?? ''} 
                       onChange={(e) => actualizarFila(index, 'cantidad', e.target.value)} 
+                      onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                       required
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center"
                     />
                   </div>
 
                   <div className="col-span-2">
                     <input 
                       type="number" 
-                      step="any"
+                      step="0.01"
                       min="0"
-                      placeholder="Ej. 3.50"
-                      value={item.costo_unitario} 
+                      placeholder="0.00"
+                      value={item.costo_unitario ?? ''} 
                       onChange={(e) => actualizarFila(index, 'costo_unitario', e.target.value)} 
+                      onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                       required
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center"
                     />
                   </div>
 

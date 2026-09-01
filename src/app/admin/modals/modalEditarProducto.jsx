@@ -1,33 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { verificarEsPanaderia, calcularPreciosPorMargen } from '@/lib/utils';
+
+// Helper interno para desinfectar entradas numéricas
+const parseNum = (val, def = 0) => {
+  if (val === null || val === undefined || val === '') return def;
+  const num = parseFloat(val);
+  return isNaN(num) ? def : num;
+};
 
 export default function ModalEditarProducto({
   show, onClose, onSubmit, prodEditando, setProdEditando, categorias, iconosDisponibles, monedaPreciosEdit, setMonedaPreciosEdit, tasa
 }) {
   const [margenDetalEdit, setMargenDetalEdit] = useState(30);
 
+  // Calcular margen implícito cuando se abre el modal con un producto existente
+  useEffect(() => {
+    if (prodEditando) {
+      const inv = parseNum(prodEditando.precio_inversion, 0);
+      const det = parseNum(prodEditando.precio_detal, 0);
+      if (inv > 0 && det > inv) {
+        const margenCalculado = Math.round(((det - inv) / inv) * 100);
+        setMargenDetalEdit(margenCalculado > 0 && margenCalculado <= 100 ? margenCalculado : 30);
+      }
+    }
+  }, [prodEditando?.id_producto, show]);
+
   if (!show || !prodEditando) return null;
 
-  // Detectar si la categoría seleccionada es Panadería o Pastelería
-  const categoriaActual = categorias.find(c => c.id_categoria === Number(prodEditando.id_categoria));
+  const categoriaActual = categorias.find(c => Number(c.id_categoria) === Number(prodEditando.id_categoria));
   const nombreCat = categoriaActual?.nombre?.toLowerCase() || '';
   const esPanaderia = verificarEsPanaderia(nombreCat);
 
-  // Manejador para productos de reventa (calcula precio detal basado en inversión y margen)
   const actualizarConNuevosPrecios = (inversion, mDetal, moneda) => {
     const precios = calcularPreciosPorMargen(inversion, mDetal, 0, moneda, tasa);
     setProdEditando(prev => ({
       ...prev,
       precio_inversion: inversion,
       precio_detal: precios.precio_detal,
-      precio_mayor: '' // No aplica precio mayor para productos que no son de panadería
+      precio_mayor: '0.00'
     }));
   };
 
   const handleInversionChange = (e) => {
     const val = e.target.value;
     if (val === '') {
-      setProdEditando({ ...prodEditando, precio_inversion: '', precio_detal: '', precio_mayor: '' });
+      setProdEditando(prev => ({ ...prev, precio_inversion: '', precio_detal: '0.00', precio_mayor: '0.00' }));
       return;
     }
     if (!val.toLowerCase().includes('e')) {
@@ -36,7 +53,7 @@ export default function ModalEditarProducto({
   };
 
   const handleMargenDetalChange = (e) => {
-    const val = parseFloat(e.target.value) || 0;
+    const val = parseNum(e.target.value, 0);
     setMargenDetalEdit(val);
     actualizarConNuevosPrecios(prodEditando.precio_inversion, val, monedaPreciosEdit);
   };
@@ -60,7 +77,7 @@ export default function ModalEditarProducto({
             <input 
               type="text" required 
               placeholder={esPanaderia ? "Ej. Pan Canilla" : "Ej. Refresco 2L"} 
-              value={prodEditando.nombre} 
+              value={prodEditando.nombre || ''} 
               onChange={e => setProdEditando({...prodEditando, nombre: e.target.value})} 
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 
             />
@@ -70,7 +87,7 @@ export default function ModalEditarProducto({
             <div>
               <label className="text-xs font-semibold text-slate-600">Categoría</label>
               <select 
-                value={prodEditando.id_categoria} 
+                value={prodEditando.id_categoria || ''} 
                 onChange={e => setProdEditando({...prodEditando, id_categoria: Number(e.target.value)})} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -80,7 +97,7 @@ export default function ModalEditarProducto({
             <div>
               <label className="text-xs font-semibold text-slate-600">Ícono</label>
               <select 
-                value={prodEditando.id_icono} 
+                value={prodEditando.id_icono || 1} 
                 onChange={e => setProdEditando({...prodEditando, id_icono: Number(e.target.value)})} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base mt-1 text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -89,7 +106,6 @@ export default function ModalEditarProducto({
             </div>
           </div>
 
-          {/* SECCIÓN DE INVERSIÓN Y MARGEN - Solo visible si NO es panadería/pastelería */}
           {!esPanaderia && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
               <div>
@@ -97,7 +113,7 @@ export default function ModalEditarProducto({
                 <div className="relative mt-1">
                   <input 
                     id="precio_inversion" name="precio_inversion" type="number" step="0.01" min="0" max="999999.99" required
-                    value={prodEditando.precio_inversion} 
+                    value={prodEditando.precio_inversion ?? ''} 
                     onChange={handleInversionChange} 
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()} 
                     placeholder="0.00"
@@ -113,15 +129,9 @@ export default function ModalEditarProducto({
                 </label>
                 <div className="relative mt-1">
                   <input
-                    id="margen_detal" 
-                    name="margen_detal" 
-                    type="number"
-                    min="0" 
-                    max="100" 
-                    step="1"
+                    id="margen_detal" name="margen_detal" type="number" min="0" max="100" step="1"
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                    placeholder="30" 
-                    required 
+                    placeholder="30" required 
                     value={margenDetalEdit} 
                     onChange={handleMargenDetalChange}
                     className="w-full bg-white border border-slate-200 rounded-lg px-7 py-1.5 text-xs font-semibold text-slate-700 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500" 
@@ -132,7 +142,6 @@ export default function ModalEditarProducto({
             </div>
           )}
 
-          {/* Precio Detal (Para todos los productos) */}
           <div>
             <div className="flex justify-between items-center">
               <label className="text-xs font-semibold text-slate-600">Precio De Venta</label>
@@ -144,12 +153,10 @@ export default function ModalEditarProducto({
             <div className="relative mt-1">
               <input 
                 id="precio_detal" name="precio_detal" type="number" step="0.01" min="0" max="999999.99" placeholder="0.00" required 
-                value={prodEditando.precio_detal} 
+                value={prodEditando.precio_detal ?? ''} 
                 onChange={e => {
                   const val = e.target.value;
-                  if (val === '') return setProdEditando({...prodEditando, precio_detal: ''});
-                  const num = parseFloat(val);
-                  if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.99) setProdEditando({...prodEditando, precio_detal: val});
+                  setProdEditando({...prodEditando, precio_detal: val});
                 }} 
                 onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -173,12 +180,10 @@ export default function ModalEditarProducto({
                 <div className="relative mt-1">
                   <input 
                     id="precio_mayor" name="precio_mayor" type="number" step="0.01" min="0" max="999999.99" placeholder="0.00" required={esPanaderia}
-                    value={prodEditando.precio_mayor} 
+                    value={prodEditando.precio_mayor ?? ''} 
                     onChange={e => {
                       const val = e.target.value;
-                      if (val === '') return setProdEditando({...prodEditando, precio_mayor: ''});
-                      const num = parseFloat(val);
-                      if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.99) setProdEditando({...prodEditando, precio_mayor: val});
+                      setProdEditando({...prodEditando, precio_mayor: val});
                     }} 
                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-10 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -192,13 +197,11 @@ export default function ModalEditarProducto({
               <div>
                 <label className="text-xs font-semibold text-slate-600">Cantidad Mínima para Precio Mayor</label>
                 <input 
-                  id="min_mayor" name="min_mayor" type="number" step="1" min="0" max="999999" placeholder="0" required={esPanaderia}
-                  value={prodEditando.cant_min_mayor || ''} 
+                  id="min_mayor" name="min_mayor" type="number" step="1" min="0" max="999999" placeholder="10" required={esPanaderia}
+                  value={prodEditando.cant_min_mayor ?? ''} 
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === '') return setProdEditando({...prodEditando, cant_min_mayor: ''});
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999) setProdEditando({...prodEditando, cant_min_mayor: num});
+                    setProdEditando({...prodEditando, cant_min_mayor: val});
                   }} 
                   onKeyDown={e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()} 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-center mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 
@@ -207,18 +210,15 @@ export default function ModalEditarProducto({
             </>
           )}
 
-          {/* Stock Actual - Solo visible si NO es panadería */}
           {!esPanaderia && (
             <div>
               <label className="text-xs font-semibold text-slate-600">Stock Actual</label>
               <input 
                 id="stock" name="stock" type="number" step="1" min="0" max="999999" placeholder="0" required={!esPanaderia}
-                value={prodEditando.stock} 
+                value={prodEditando.stock ?? ''} 
                 onChange={e => {
                   const val = e.target.value;
-                  if (val === '') return setProdEditando({...prodEditando, stock: ''});
-                  const num = parseInt(val, 10);
-                  if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999) setProdEditando({...prodEditando, stock: num});
+                  setProdEditando({...prodEditando, stock: val});
                 }} 
                 onKeyDown={e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()} 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-center mt-1 focus:outline-none focus:ring-2 focus:ring-amber-500" 
