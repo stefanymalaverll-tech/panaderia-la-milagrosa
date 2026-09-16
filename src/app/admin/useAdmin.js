@@ -3,7 +3,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { verificarEsPanaderia, convertirAUSD, prepararDatosProducto } from '@/lib/utils';
+import {
+  calcularEstadisticasCajas, 
+  filtrarHistorialCajas, 
+  calcularProductosMasVendidos
+} from '@/lib/utils/cajaUtils';
+
+import {
+  verificarEsPanaderia, 
+  prepararDatosProducto, 
+  prepararDatosMateriaPrima
+} from '@/lib/utils/negocioUtils';
+
+import { 
+  estadoEntidad, 
+  guardarEntidadConInventario
+} from '@/lib/services/inventarioService';
 
 export function useAdmin() {
   const router = useRouter();
@@ -39,7 +54,7 @@ export function useAdmin() {
   const [showModalProducto, setShowModalProducto] = useState(false);
   const [monedaPrecios, setMonedaPrecios] = useState({ inversion: 'BS', detal: 'BS', mayor: 'BS' });
   const [nuevoProd, setNuevoProd] = useState({
-    nombre: '', id_categoria: 1, precio_inversion: 0, precio_detal: 0, precio_mayor: 0, stock: 0, cant_min_mayor: 10, id_icono: 1
+    nombre: '', id_categoria: 1, precio_inversion: 0, precio_detal: 0, precio_mayor: 0, stock: 0, cant_min_mayor: 0, id_icono: 1
   });
 
   // Modal Editar Producto
@@ -57,12 +72,14 @@ export function useAdmin() {
   const [mpEditando, setMpEditando] = useState(null);
   const [monedaMPEdit, setMonedaMPEdit] = useState('USD');
 
-  // Modal para Registrar Compra (NUEVO)
+  // Modal para Registrar Compra
   const [showModalRegistroCompra, setShowModalRegistroCompra] = useState(false);
 
   // Modal para Editar Tasa BCV
   const [showModalTasa, setShowModalTasa] = useState(false);
   const [nuevaTasaInput, setNuevaTasaInput] = useState('');
+  const [comisionAvance, setComisionAvance] = useState(0); 
+  const [nuevaComisionInput, setNuevaComisionInput] = useState(''); 
 
   // Filtro de fechas
   const [tipoFiltro, setTipoFiltro] = useState('semanal');
@@ -131,7 +148,7 @@ export function useAdmin() {
         resDetallesOrdenes,
         resCajas
       ] = await Promise.all([
-        supabase.from('configuracion').select('tasa_bcv').eq('id', 1).single(),
+        supabase.from('configuracion').select('tasa_bcv, comision_avance').eq('id', 1).single(),
         supabase.from('producto').select('*, categoria(nombre), icono_producto(simbolo)').lt('stock', 5),
         supabase.from('producto').select('*, categoria(nombre), icono_producto(simbolo)').order('nombre'),
         supabase.from('categoria').select('*'),
@@ -148,6 +165,8 @@ export function useAdmin() {
         tasaActual = Number(resConfig.data.tasa_bcv);
         setTasaBCV(tasaActual);
         setNuevaTasaInput(resConfig.data.tasa_bcv);
+        setComisionAvance(Number(resConfig.data.comision_avance || 0));
+        setNuevaComisionInput(resConfig.data.comision_avance || 0);
       }
 
       if (resStockBajo.data) {
@@ -174,28 +193,7 @@ export function useAdmin() {
         if (cajaActiva) cajaAbiertaId = cajaActiva.id_caja;
         setCajaAbiertaIdGlobal(cajaAbiertaId);
 
-        let ingresosUSD = 0, ingresosBs = 0, descuadresUSD = 0, descuadresBs = 0, turnos = 0;
-
-        resCajas.data.forEach(caja => {
-          if (caja.status?.toLowerCase() === 'cerrado') {
-            turnos++;
-            caja.detalle_cierre_caja?.forEach(det => {
-              const monto = Number(det.monto_contado || 0);
-              const diferencia = Number(det.diferencia || 0);
-              const moneda = det.pago?.moneda;
-
-              if (moneda === 'USD') {
-                ingresosUSD += monto;
-                descuadresUSD += diferencia;
-              } else if (moneda === 'Bs' || moneda === 'BS') {
-                ingresosBs += monto;
-                descuadresBs += diferencia;
-              }
-            });
-          }
-        });
-
-        setStatsCaja({ ingresosUSD, ingresosBs, descuadreUSD: descuadresUSD, descuadreBs: descuadresBs, turnosCerrados: turnos });
+        setStatsCaja(calcularEstadisticasCajas(resCajas.data));
       }
 
       if (resOrdenesHoy.data) {
@@ -224,190 +222,146 @@ export function useAdmin() {
     }
   };
 
-  // Función alias para refrescar datos desde los modales (ej. después de registrar una compra)
   const cargarDatos = inicializarAdmin;
 
-  const handleCrearProducto = async (e) => {
+  const handleGuardarProducto = async (e, esEdicion) => {
     e.preventDefault();
+    if (esEdicion && !prodEditando) return;
+
     try {
-      const { productoFinal, esPanaderia } = prepararDatosProducto(nuevoProd, monedaPrecios, categorias, tasaBCV);
+      const prodBase = esEdicion ? prodEditando : nuevoProd;
+      const monedas = esEdicion ? monedaPreciosEdit : monedaPrecios;
+      
+      const { productoFinal, esPanaderia } = prepararDatosProducto(prodBase, monedas, categorias, tasaBCV);
+      const stockViejo = esEdicion ? Number(prodEditando.stock_original ?? prodEditando.stock) : 0;
+      const stockNuevo = Number(productoFinal.stock);
+      const diferencia = stockNuevo - stockViejo;
 
-      const { data: prodCreado, error } = await supabase
-        .from('producto')
-        .insert([productoFinal])
-        .select()
-        .single();
+      await guardarEntidadConInventario({
+        supabase,
+        esActualizacion: esEdicion,
+        tablaPrincipal: 'producto',
+        tablaAuditoria: 'inventario_producto',
+        columnaId: 'id_producto',
+        datosEntidad: productoFinal,
+        idUsuario: usuario.id_usuario,
+        idEntidad: esEdicion ? prodEditando.id_producto : null,
+        stockViejo,
+        stockNuevo,
+        // Evitamos registrar stock inicial si es categoría panadería
+        descripcionAuditoria: esEdicion 
+          ? `Ajuste manual. Diferencia: ${diferencia > 0 ? '+' : ''}${diferencia}`
+          : (!esPanaderia ? 'Registro inicial de producto' : null)
+      });
 
-      if (error) throw error;
-
-      if (!esPanaderia) {
-        await supabase.from('inventario_producto').insert([{
-          id_producto: prodCreado.id_producto,
-          id_usuario: usuario.id_usuario,
-          id_registro: 1,
-          cantidad: nuevoProd.stock,
-          descripcion: 'Registro inicial de producto'
-        }]);
+      mostrarMensaje(`✅ Producto ${esEdicion ? 'actualizado' : 'creado'} exitosamente.`);
+      
+      if (esEdicion) {
+        setShowModalEditarProd(false);
+        setProdEditando(null);
+      } else {
+        setShowModalProducto(false);
+        setNuevoProd({ nombre: '', id_categoria: 1, precio_inversion: 0, precio_detal: 0, precio_mayor: 0, stock: 0, cant_min_mayor: 10, id_icono: 1 });
       }
-
-      mostrarMensaje('✅ Producto agregado exitosamente.');
-      setShowModalProducto(false);
-      setNuevoProd({ nombre: '', id_categoria: 1, precio_inversion: 0, precio_detal: 0, precio_mayor: 0, stock: 0, cant_min_mayor: 10, id_icono: 1 });
       inicializarAdmin();
+
     } catch (err) {
-      mostrarMensaje('❌ Error al registrar producto. Verifica los datos.', 'error');
+      mostrarMensaje(`❌ Error al ${esEdicion ? 'actualizar' : 'registrar'} producto.`, 'error');
     }
   };
 
-  const handleActualizarProducto = async (e) => {
-    e.preventDefault();
-    if (!prodEditando) return;
+  const handleArchivarProducto = async (id, estadoActual) => {
     try {
-      const { productoFinal } = prepararDatosProducto(prodEditando, monedaPreciosEdit, categorias, tasaBCV);
-
-      if (prodEditando.stock !== productoFinal.stock) {
-        const diferenciaStock = productoFinal.stock - prodEditando.stock;
-        await supabase.from('inventario_producto').insert([{
-          id_producto: prodEditando.id_producto,
-          id_usuario: usuario.id_usuario,
-          id_registro: diferenciaStock > 0 ? 1 : 2,
-          cantidad: Math.abs(diferenciaStock),
-          descripcion: `Ajuste manual desde panel de administración. Diferencia: ${diferenciaStock > 0 ? '+' : ''}${diferenciaStock}`
-        }]);
-      }
-
-      const { error } = await supabase
-        .from('producto')
-        .update(productoFinal)
-        .eq('id_producto', prodEditando.id_producto);
-
-      if (error) throw error;
-
-      mostrarMensaje('✅ Producto actualizado correctamente.');
-      setShowModalEditarProd(false);
-      setProdEditando(null);
+      await estadoEntidad(supabase, 'producto', 'id_producto', id, estadoActual);
+      mostrarMensaje(!estadoActual ? '📂 Producto restaurado' : '📁 Producto archivado');
       inicializarAdmin();
     } catch (err) {
-      mostrarMensaje('❌ Error al actualizar producto. Intenta de nuevo.', 'error');
+      mostrarMensaje('❌ Error al cambiar estado del producto.', 'error');
     }
   };
 
-  const handleArchivarProducto = async (id_producto, estadoActual) => {
-    try {
-      const { error } = await supabase
-        .from('producto')
-        .update({ activo: !estadoActual })
-        .eq('id_producto', id_producto);
+  const handleGuardarMateriaPrima = async (e, esEdicion) => {
+  e.preventDefault();
+  if (esEdicion && !mpEditando) return;
 
-      if (error) throw error;
-      mostrarMensaje(!estadoActual ? '📂 Producto restaurado correctamente' : '📁 Producto archivado correctamente');
-      inicializarAdmin();
-    } catch (err) {
-      mostrarMensaje('❌ Error al cambiar el estado del producto.', 'error');
-    }
-  };
+  try {
+    const mpBase = esEdicion ? mpEditando : nuevaMP;
+    
+    const monedaCruda = esEdicion ? monedaMPEdit : monedaMP;
+    const monedaValida = monedaCruda === 'BS' ? 'Bs' : monedaCruda;
+    
+    const mpPreparada = prepararDatosMateriaPrima(mpBase, monedaValida, tasaBCV);
 
-  const handleCrearMateriaPrima = async (e) => {
-    e.preventDefault();
-    try {
-      const mpFinal = {
-        ...nuevaMP,
-        costo: convertirAUSD(nuevaMP.costo, monedaMP)
-      };
+    const { stock_original, ...mpFinal } = mpPreparada;
 
-      const { data: mpCreada, error } = await supabase
-        .from('materia_prima')
-        .insert([mpFinal])
-        .select()
-        .single();
+    const stockViejo = esEdicion ? Number(mpEditando.stock_original ?? mpEditando.stock) : 0;
+    const stockNuevo = Number(mpFinal.stock);
+    const diferencia = stockNuevo - stockViejo;
 
-      if (error) throw error;
+    await guardarEntidadConInventario({
+      supabase,
+      esActualizacion: esEdicion,
+      tablaPrincipal: 'materia_prima',
+      tablaAuditoria: 'inventario_mp',
+      columnaId: 'id_materiaprima',
+      datosEntidad: mpFinal,
+      idUsuario: usuario.id_usuario,
+      idEntidad: esEdicion ? mpEditando.id_materiaprima : null,
+      stockViejo,
+      stockNuevo,
+      descripcionAuditoria: esEdicion 
+        ? `Ajuste manual. Diferencia: ${diferencia > 0 ? '+' : ''}${diferencia}`
+        : 'Registro de materia prima'
+    });
 
-      await supabase.from('inventario_mp').insert([{
-        id_materiaprima: mpCreada.id_materiaprima,
-        id_usuario: usuario.id_usuario,
-        id_registro: 1,
-        cantidad: nuevaMP.stock,
-        descripcion: 'Registro inicial de materia prima'
-      }]);
-
-      mostrarMensaje('✅ Materia prima agregada con éxito.');
-      setShowModalMP(false);
-      setNuevaMP({ nombre: '', unidad: 'kg', costo: 0, stock: 0 });
-      inicializarAdmin();
-    } catch (err) {
-      mostrarMensaje('❌ Error al registrar materia prima. Intenta de nuevo.', 'error');
-    }
-  };
-
-  const handleActualizarMateriaPrima = async (e) => {
-    e.preventDefault();
-    if (!mpEditando) return;
-    try {
-      const mpActualizada = {
-        nombre: mpEditando.nombre,
-        unidad: mpEditando.unidad,
-        stock: mpEditando.stock,
-        costo: convertirAUSD(mpEditando.costo, monedaMPEdit)
-      };
-
-      if (mpEditando.stock !== mpActualizada.stock) {
-        const diferenciaStock = mpActualizada.stock - mpEditando.stock;
-        await supabase.from('inventario_mp').insert([{
-          id_materiaprima: mpEditando.id_materiaprima,
-          id_usuario: usuario.id_usuario,
-          id_registro: diferenciaStock > 0 ? 1 : 2,
-          cantidad: Math.abs(diferenciaStock),
-          descripcion: `Ajuste manual desde panel de administración. Diferencia: ${diferenciaStock > 0 ? '+' : ''}${diferenciaStock}`
-        }]);
-      }
-
-      const { error } = await supabase
-        .from('materia_prima')
-        .update(mpActualizada)
-        .eq('id_materiaprima', mpEditando.id_materiaprima);
-
-      if (error) throw error;
-
-      mostrarMensaje('✅ Materia prima actualizada correctamente.');
+    mostrarMensaje(`✅ Materia prima ${esEdicion ? 'actualizada' : 'creada'} exitosamente.`);
+    
+    if (esEdicion) {
       setShowModalEditarMP(false);
       setMpEditando(null);
-      inicializarAdmin();
-    } catch (err) {
-      mostrarMensaje('❌ Error al actualizar materia prima. Intenta de nuevo.', 'error');
+    } else {
+      setShowModalMP(false);
+      setNuevaMP({ nombre: '', unidad: 'kg', costo: 0, stock: 0 });
+      setMonedaMP('BS');
     }
-  };
+    inicializarAdmin();
 
-  const handleArchivarMateriaPrima = async (id_materiaprima, estadoActual) => {
+  } catch (err) {
+    mostrarMensaje(
+      `❌ Error al ${esEdicion ? 'actualizar' : 'registrar'}: ${err?.message || 'Error desconocido'}`, 
+      'error'
+    );
+  }
+};
+
+  const handleArchivarMateriaPrima = async (id, estadoActual) => {
     try {
-      const { error } = await supabase
-        .from('materia_prima')
-        .update({ activo: !estadoActual })
-        .eq('id_materiaprima', id_materiaprima);
-
-      if (error) throw error;
-      mostrarMensaje(!estadoActual ? '📂 Materia prima restaurada correctamente' : '📁 Materia prima archivada correctamente');
+      await estadoEntidad(supabase, 'materia_prima', 'id_materiaprima', id, estadoActual);
+      mostrarMensaje(!estadoActual ? '📂 Materia prima restaurada' : '📁 Materia prima archivada');
       inicializarAdmin();
     } catch (err) {
-      mostrarMensaje('❌ Error al cambiar el estado de la materia prima.', 'error');
+      mostrarMensaje('❌ Error al cambiar estado de la materia prima.', 'error');
     }
   };
 
-  const handleActualizarTasa = async (e) => {
+  const handleActualizarParametros = async (e) => {
     e.preventDefault();
     try {
       const { error } = await supabase
         .from('configuracion')
-        .update({ tasa_bcv: Number(nuevaTasaInput) })
+        .update({ 
+          tasa_bcv: Number(nuevaTasaInput),
+          comision_avance: Number(nuevaComisionInput) // Guarda la comisión
+        })
         .eq('id', 1);
 
       if (error) throw error;
 
-      mostrarMensaje('✅ Tasa BCV actualizada correctamente.');
+      mostrarMensaje('✅ Parámetros actualizados correctamente.');
       setShowModalTasa(false);
       inicializarAdmin();
     } catch (err) {
-      mostrarMensaje('❌ Error al actualizar la tasa. Intenta de nuevo.', 'error');
+      mostrarMensaje('❌ Error al actualizar los parámetros. Intenta de nuevo.', 'error');
     }
   };
 
@@ -452,66 +406,11 @@ export function useAdmin() {
   };
 
   const historialCaja = useMemo(() => {
-    const ahora = new Date();
-    return historialCajas.filter(caja => {
-      const fechaCaja = new Date(caja.hora_apertura);
-      if (tipoFiltro === 'semanal') {
-        const unaSemanaAtras = new Date();
-        unaSemanaAtras.setDate(ahora.getDate() - 7);
-        return fechaCaja >= unaSemanaAtras && fechaCaja <= ahora;
-      } 
-      if (tipoFiltro === 'quincenal') {
-        const unaQuincenaAtras = new Date();
-        unaQuincenaAtras.setDate(ahora.getDate() - 15);
-        return fechaCaja >= unaQuincenaAtras && fechaCaja <= ahora;
-      } 
-      if (tipoFiltro === 'mensual') {
-        const unMesAtras = new Date();
-        unMesAtras.setMonth(ahora.getMonth() - 1);
-        return fechaCaja >= unMesAtras && fechaCaja <= ahora;
-      } 
-      if (tipoFiltro === 'personalizado' && fechaInicio && fechaFin) {
-        const inicio = new Date(fechaInicio);
-        inicio.setHours(0, 0, 0, 0);
-        const fin = new Date(fechaFin);
-        fin.setHours(23, 59, 59, 999);
-        return fechaCaja >= inicio && fechaCaja <= fin;
-      }
-      return true;
-    });
+    return filtrarHistorialCajas(historialCajas, tipoFiltro, fechaInicio, fechaFin);
   }, [historialCajas, tipoFiltro, fechaInicio, fechaFin]);
 
   const productosMasVendidos = useMemo(() => {
-    if (!detallesOrdenesRaw || detallesOrdenesRaw.length === 0) return [];
-
-    let detallesAProcesar = detallesOrdenesRaw;
-
-    if (filtroMasVendidos === 'turno') {
-      const idsOrdenesTurno = new Set(
-        ordenesHoyRaw
-          .filter(o => o.id_caja === cajaAbiertaIdGlobal)
-          .map(o => o.id_orden)
-      );
-      detallesAProcesar = detallesOrdenesRaw.filter(item => idsOrdenesTurno.has(item.id_orden));
-    }
-
-    const ventasPorProd = {};
-    detallesAProcesar.forEach(item => {
-      if (!item.producto) return;
-      const id = item.producto.id_producto;
-      const nombre = item.producto.nombre;
-      const simbolo = item.producto.icono_producto?.simbolo || '📦';
-      const cantidad = Number(item.cantidad || 0);
-
-      if (!ventasPorProd[id]) {
-        ventasPorProd[id] = { id, nombre, simbolo, totalCantidad: 0 };
-      }
-      ventasPorProd[id].totalCantidad += cantidad;
-    });
-
-    return Object.values(ventasPorProd)
-      .sort((a, b) => b.totalCantidad - a.totalCantidad)
-      .slice(0, 5);
+    return calcularProductosMasVendidos(detallesOrdenesRaw, ordenesHoyRaw, cajaAbiertaIdGlobal, filtroMasVendidos);
   }, [detallesOrdenesRaw, ordenesHoyRaw, cajaAbiertaIdGlobal, filtroMasVendidos]);
 
   const handleLogout = async () => {
@@ -536,7 +435,7 @@ export function useAdmin() {
         .from('orden')
         .select(`
           id_orden, num_ticket, hora_orden, total_usd, total_bs,
-          detalle_orden (cantidad, precio_unitario_usd, subtotal_usd, producto (nombre, icono_producto (simbolo))),
+          detalle_orden (cantidad, precio_unitario_usd, subtotal_usd, subtotal_bs, producto (nombre, icono_producto (simbolo))),
           pago_orden (monto_usd, monto_bs, numero_referencia, es_vuelto, pago (nombre, moneda))
         `)
         .eq('id_caja', caja.id_caja)
@@ -563,11 +462,12 @@ export function useAdmin() {
     showModalEditarMP, setShowModalEditarMP, mpEditando, setMpEditando, monedaMPEdit, setMonedaMPEdit,
     showModalRegistroCompra, setShowModalRegistroCompra,
     showModalTasa, setShowModalTasa, nuevaTasaInput, setNuevaTasaInput,
+    comisionAvance, nuevaComisionInput, setNuevaComisionInput,
     eliminarOrden, ordenAEliminar, setOrdenAEliminar,
     tipoFiltro, setTipoFiltro, fechaInicio, setFechaInicio, fechaFin, setFechaFin,
     showModalDetallesCaja, setShowModalDetallesCaja, cajaSeleccionada, ordenesCaja, cargandoOrdenes,
-    notificacion, handleCrearProducto, handleActualizarProducto, handleArchivarProducto, handleCrearMateriaPrima,
-    handleActualizarMateriaPrima, handleArchivarMateriaPrima, handleActualizarTasa, handleLogout, handleVerDetallesCaja,
+    notificacion, handleArchivarProducto, handleGuardarProducto, handleGuardarMateriaPrima, handleArchivarMateriaPrima, 
+    handleActualizarParametros, handleLogout, handleVerDetallesCaja,
     filtroMasVendidos, setFiltroMasVendidos, cargarDatos
   };
 }

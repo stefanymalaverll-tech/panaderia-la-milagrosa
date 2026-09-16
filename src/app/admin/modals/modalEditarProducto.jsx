@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { verificarEsPanaderia, calcularPreciosPorMargen } from '@/lib/utils';
+import {
+  parseNum, 
+  convertirMoneda 
+} from '@/lib/utils/montoUtils';
 
-// Helper interno para desinfectar entradas numéricas
-const parseNum = (val, def = 0) => {
-  if (val === null || val === undefined || val === '') return def;
-  const num = parseFloat(val);
-  return isNaN(num) ? def : num;
-};
+import { 
+  verificarEsPanaderia, 
+  calcularPreciosPorMargen 
+} from '@/lib/utils/negocioUtils';
 
 export default function ModalEditarProducto({
   show, onClose, onSubmit, prodEditando, setProdEditando, categorias, iconosDisponibles, monedaPreciosEdit, setMonedaPreciosEdit, tasa
@@ -58,11 +59,25 @@ export default function ModalEditarProducto({
     actualizarConNuevosPrecios(prodEditando.precio_inversion, val, monedaPreciosEdit);
   };
 
-  const handleCambioMoneda = (tipo, moneda) => {
-    const updatedMoneda = { ...monedaPreciosEdit, [tipo]: moneda };
+  const handleCambioMoneda = (tipo, nuevaMoneda) => {
+    const monedaAnterior = monedaPreciosEdit[tipo];
+    if (monedaAnterior === nuevaMoneda) return;
+
+    const updatedMoneda = { ...monedaPreciosEdit, [tipo]: nuevaMoneda };
     setMonedaPreciosEdit(updatedMoneda);
-    if (!esPanaderia) {
-      actualizarConNuevosPrecios(prodEditando.precio_inversion, margenDetalEdit, updatedMoneda);
+
+    const tasaNum = parseNum(tasa, 1);
+
+    // Conversión automática del valor numérico actual al cambiar de moneda
+    if (tipo === 'inversion' && prodEditando.precio_inversion !== '') {
+      const nuevoValor = convertirMoneda(prodEditando.precio_inversion, monedaAnterior, nuevaMoneda, tasaNum);
+      actualizarConNuevosPrecios(nuevoValor, margenDetalEdit, updatedMoneda);
+    } else if (tipo === 'detal' && prodEditando.precio_detal !== '') {
+      const nuevoValor = convertirMoneda(prodEditando.precio_detal, monedaAnterior, nuevaMoneda, tasaNum);
+      setProdEditando(prev => ({ ...prev, precio_detal: Number(nuevoValor).toFixed(2) }));
+    } else if (tipo === 'mayor' && prodEditando.precio_mayor !== '') {
+      const nuevoValor = convertirMoneda(prodEditando.precio_mayor, monedaAnterior, nuevaMoneda, tasaNum);
+      setProdEditando(prev => ({ ...prev, precio_mayor: Number(nuevoValor).toFixed(2) }));
     }
   };
 
@@ -109,7 +124,13 @@ export default function ModalEditarProducto({
           {!esPanaderia && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700">Precio Inversión Unitario</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-semibold text-slate-700">Precio Inversión Unitario</label>
+                  <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button type="button" onClick={() => handleCambioMoneda('inversion', 'BS')} className={`px-2 py-0.5 rounded-md transition-colors ${monedaPreciosEdit.inversion === 'BS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}>Bs.</button>
+                    <button type="button" onClick={() => handleCambioMoneda('inversion', 'USD')} className={`px-2 py-0.5 rounded-md transition-colors ${monedaPreciosEdit.inversion === 'USD' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}>$</button>
+                  </div>
+                </div>
                 <div className="relative mt-1">
                   <input 
                     id="precio_inversion" name="precio_inversion" type="number" step="0.01" min="0" max="999999.99" required
@@ -119,7 +140,9 @@ export default function ModalEditarProducto({
                     placeholder="0.00"
                     className="w-full bg-white border border-slate-200 rounded-lg px-10 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">Bs.</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                    {monedaPreciosEdit.inversion === 'BS' ? 'Bs.' : '$'}
+                  </span>
                 </div>
               </div>
 

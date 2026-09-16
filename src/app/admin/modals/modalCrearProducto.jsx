@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { verificarEsPanaderia, calcularPreciosPorMargen } from '@/lib/utils';
+import {
+  verificarEsPanaderia, 
+  calcularPreciosPorMargen
+} from '@/lib/utils/negocioUtils';
+
+import {
+  parseNum, 
+  convertirMoneda 
+} from '@/lib/utils/montoUtils';
 
 export default function ModalCrearProducto({
   show, onClose, onSubmit, nuevoProd, setNuevoProd, categorias, iconosDisponibles, monedaPrecios, setMonedaPrecios, tasa
@@ -34,16 +42,30 @@ export default function ModalCrearProducto({
   };
 
   const handleMargenDetalChange = (e) => {
-    const val = parseFloat(e.target.value) || 0;
+    const val = parseNum(e.target.value, 0);
     setMargenDetal(val);
     actualizarConNuevosPrecios(nuevoProd.precio_inversion, val, monedaPrecios);
   };
 
-  const handleCambioMoneda = (tipo, moneda) => {
-    const updatedMoneda = { ...monedaPrecios, [tipo]: moneda };
+  const handleCambioMoneda = (tipo, nuevaMoneda) => {
+    const monedaAnterior = monedaPrecios[tipo];
+    if (monedaAnterior === nuevaMoneda) return;
+
+    const updatedMoneda = { ...monedaPrecios, [tipo]: nuevaMoneda };
     setMonedaPrecios(updatedMoneda);
-    if (!esPanaderia) {
-      actualizarConNuevosPrecios(nuevoProd.precio_inversion, margenDetal, updatedMoneda);
+
+    const tasaNum = parseNum(tasa, 1);
+
+    // Conversión automática del valor numérico actual al cambiar de moneda
+    if (tipo === 'inversion' && nuevoProd.precio_inversion !== '') {
+      const nuevoValor = convertirMoneda(nuevoProd.precio_inversion, monedaAnterior, nuevaMoneda, tasaNum);
+      actualizarConNuevosPrecios(nuevoValor, margenDetal, updatedMoneda);
+    } else if (tipo === 'detal' && nuevoProd.precio_detal !== '') {
+      const nuevoValor = convertirMoneda(nuevoProd.precio_detal, monedaAnterior, nuevaMoneda, tasaNum);
+      setNuevoProd(prev => ({ ...prev, precio_detal: Number(nuevoValor).toFixed(2) }));
+    } else if (tipo === 'mayor' && nuevoProd.precio_mayor !== '') {
+      const nuevoValor = convertirMoneda(nuevoProd.precio_mayor, monedaAnterior, nuevaMoneda, tasaNum);
+      setNuevoProd(prev => ({ ...prev, precio_mayor: Number(nuevoValor).toFixed(2) }));
     }
   };
 
@@ -90,7 +112,13 @@ export default function ModalCrearProducto({
           {!esPanaderia && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700">Precio Inversión Unitario</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-semibold text-slate-700">Precio Inversión Unitario</label>
+                  <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button type="button" onClick={() => handleCambioMoneda('inversion', 'BS')} className={`px-2 py-0.5 rounded-md transition-colors ${monedaPrecios.inversion === 'BS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}>Bs.</button>
+                    <button type="button" onClick={() => handleCambioMoneda('inversion', 'USD')} className={`px-2 py-0.5 rounded-md transition-colors ${monedaPrecios.inversion === 'USD' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}>$</button>
+                  </div>
+                </div>
                 <div className="relative mt-1">
                   <input 
                     id="precio_inversion" name="precio_inversion" type="number" step="0.01" min="0" max="999999.99" required
@@ -100,7 +128,9 @@ export default function ModalCrearProducto({
                     placeholder="0.00"
                     className="w-full bg-white border border-slate-200 rounded-lg px-10 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500" 
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">Bs.</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                    {monedaPrecios.inversion === 'BS' ? 'Bs.' : '$'}
+                  </span>
                 </div>
               </div>
 

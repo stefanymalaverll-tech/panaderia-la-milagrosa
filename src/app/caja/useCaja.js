@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { verificarEsPanaderia } from '@/lib/utils';
+import { verificarEsPanaderia } from '@/lib/utils/negocioUtils';
+import { obtenerMontoFlotante } from '@/lib/utils/montoUtils';
 
 export function useCaja() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function useCaja() {
   const [modalAperturaVisible, setModalAperturaVisible] = useState(false);
   const [montoAperturaBs, setMontoAperturaBs] = useState('');
   const [procesandoApertura, setProcesandoApertura] = useState(false);
+  const [modalAvanceAbierto, setModalAvanceAbierto] = useState(false);
 
   // Vista Ordenes
   const [showModalDetallesCaja, setShowModalDetallesCaja] = useState(false);
@@ -276,7 +278,12 @@ export function useCaja() {
   const vueltoUSD = Number((vueltoBs / tasaBCV).toFixed(2));
 
   const agregarPago = () => {
-    const montoIngresado = parseFloat(montoAbonoInput);
+    // Detectamos si el método actual es en dólares
+    const esDolar = metodoActualObj?.moneda === 'USD';
+    
+    // Obtenemos el valor flotante correcto transformando la coma de la máscara a punto flotante si es USD
+    const montoIngresado = obtenerMontoFlotante(montoAbonoInput, esDolar);
+
     if (!montoIngresado || montoIngresado <= 0) return;
     if (esPagoMovil && !numReferencia.trim()) { alert("⚠️ Debe ingresar el número de referencia para registrar el Pago Móvil."); return; }
 
@@ -289,8 +296,8 @@ export function useCaja() {
       return;
     }
 
-    let montoUSDCalculado = metodoActualObj.moneda === 'Bs' ? montoIngresado / tasaBCV : montoIngresado;
-    let montoBsCalculado = metodoActualObj.moneda === 'Bs' ? montoIngresado : montoIngresado * tasaBCV;
+    let montoUSDCalculado = esDolar ? montoIngresado : montoIngresado / tasaBCV;
+    let montoBsCalculado = esDolar ? montoIngresado * tasaBCV : montoIngresado;
 
     setPagosRegistrados([...pagosRegistrados, {
       id_pago: metodoActualObj.id_pago,
@@ -370,6 +377,6 @@ export function useCaja() {
     eliminarDelCarrito, cancelarOrden, agregarPago, eliminarPago, procesarVentaReal,
     esPagoMovil, totalPagarUSD, totalPagarBs, faltanteUSD, faltanteBs, vueltoUSD, vueltoBs, metodoActualObj,
     showModalDetallesCaja, setShowModalDetallesCaja, ordenesCaja, cargandoOrdenes,
-    cajaSeleccionada: cajaActiva, handleAbrirMisVentas
+    cajaSeleccionada: cajaActiva, handleAbrirMisVentas, modalAvanceAbierto, setModalAvanceAbierto, mostrarMensaje
   };
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 export default function MateriaPrimaView({ 
   materiaPrima = [], 
@@ -18,33 +18,6 @@ export default function MateriaPrimaView({
   };
 
   const valorTasa = Number(tasa) || 1;
-
-  const metricas = useMemo(() => {
-    let totalUSD = 0;
-    let totalBs = 0;
-    let stockCritico = 0;
-
-    materiaPrima.forEach(mp => {
-      if (mp.activo === false || mp.activo === 0) return;
-
-      if (mp.stock < 5) stockCritico += 1;
-
-      const esBs = mp.moneda_base === 'Bs' || mp.moneda_base === 'BS';
-      const stock = Number(mp.stock) || 0;
-      
-      if (esBs) {
-        const costoEnBs = Number(mp.costo_bs || mp.costo);
-        totalBs += (costoEnBs * stock);
-        totalUSD += ((costoEnBs / valorTasa) * stock);
-      } else {
-        const costoEnUsd = Number(mp.costo);
-        totalUSD += (costoEnUsd * stock);
-        totalBs += ((costoEnUsd * valorTasa) * stock);
-      }
-    });
-
-    return { totalUSD, totalBs, stockCritico };
-  }, [materiaPrima, valorTasa]);
 
   const getCostoPrecios = (costoUSD, costoBs, monedaBase, valorTasa) => {
     const esBaseBs = monedaBase === 'Bs' || monedaBase === 'BS';
@@ -76,24 +49,9 @@ export default function MateriaPrimaView({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Capital Invertido (USD)</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">USD {metricas.totalUSD.toFixed(2)}</p>
-        </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Capital Invertido (Bs)</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">Bs. {metricas.totalBs.toFixed(2)}</p>
-        </div>
-        <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-          <p className="text-xs text-red-500 font-semibold uppercase tracking-wider">Insumos Críticos</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">{metricas.stockCritico} ítems</p>
-        </div>
-      </div>
-      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">🌾 Gestión de Materia Prima e Insumos</h2>
+          <h2 className="text-lg font-bold text-slate-800">Gestión de Materia Prima e Insumos</h2>
           <p className="text-xs text-slate-500 mt-1">Control de existencias para procesos de producción.</p>
           {filtroEstado !== 'activos' && (
             <p className="text-xs text-blue-600 font-medium mt-0.5">
@@ -101,14 +59,8 @@ export default function MateriaPrimaView({
             </p>
           )}
         </div>
-        <button 
-          onClick={() => setShowModalMP(true)} 
-          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm"
-        >
-          + Nueva Materia Prima
-        </button>
       </div>
-
+      
       {/* 🔍 Controles de búsqueda y filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
         <input 
@@ -174,11 +126,14 @@ export default function MateriaPrimaView({
                                 const esBs = mp.moneda_base === 'Bs' || mp.moneda_base === 'BS';
                                 setMpEditando({ 
                                   ...mp,
-                                  costo: esBs ? (mp.costo_bs || mp.costo) : mp.costo
+                                  stock_original: mp.stock ?? 0,
+                                  costo: mp.costo || 0,
+                                  costo_bs: mp.costo_bs || (Number(mp.costo || 0) * valorTasa).toFixed(2),
+                                  moneda_base: mp.moneda_base || 'USD'
                                 }); 
                                 setMonedaMPEdit(esBs ? 'BS' : 'USD'); 
                                 setShowModalEditarMP(true); 
-                              }} 
+                              }}
                               className="text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-amber-600 transition-colors cursor-pointer"
                             >
                               ✏️ Ajustar

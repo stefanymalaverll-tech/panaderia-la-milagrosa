@@ -24,8 +24,16 @@ export default function CierreDeCaja() {
     obtenerIconoPago,
     subtotalBs,
     subtotalUsd,
+    tasa,
     procesarArqueoCierre
   } = useCierre();
+
+  // Validación: Verifica si algún método con dinero esperado aún no ha sido declarado
+  const faltanPagosPorDeclarar = desglosePagos.some((item) => {
+    const tieneMovimiento = Number(item.monto_esperado || 0) > 0;
+    const valorDeclarado = montosContados[item.id_pago];
+    return tieneMovimiento && (valorDeclarado === undefined || valorDeclarado === null || valorDeclarado === '');
+  });
 
   if (cargando) {
     return (
@@ -64,7 +72,7 @@ export default function CierreDeCaja() {
 
         <div className="space-y-4">
           {desglosePagos.map((item) => {
-            const contado = montosContados[item.id_pago] || 0;
+            const contado = montosContados[item.id_pago] !== undefined ? montosContados[item.id_pago] : 0;
             const esperado = Number(item.monto_esperado) || 0;
             const diferencia = contado - esperado;
     
@@ -82,7 +90,7 @@ export default function CierreDeCaja() {
           })}
         </div>
 
-        <ResumenFinancieroCierre subtotalBs={subtotalBs} subtotalUsd={subtotalUsd} />
+        <ResumenFinancieroCierre subtotalBs={subtotalBs} subtotalUsd={subtotalUsd} tasa={tasa} />
 
         {generandoImagen && (
           <div className="mt-8 pt-4 border-t border-stone-200 text-center text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
@@ -91,14 +99,26 @@ export default function CierreDeCaja() {
         )}
 
         {!generandoImagen && (
-          <button
-            onClick={() => setCierreCaja(true)}
-            disabled={procesando}
-            className="mt-8 w-full bg-slate-900 hover:bg-black text-white font-bold py-4 px-6 rounded-none transition-all transform active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 text-sm tracking-wide cursor-pointer"
-            style={{ boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-          >
-            <span>Confirmar Cierre y Descargar Ticket 📥</span>
-          </button>
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <button
+              onClick={() => setCierreCaja(true)}
+              disabled={procesando || faltanPagosPorDeclarar}
+              className={`w-full font-bold py-4 px-6 rounded-none transition-all flex items-center justify-center gap-2 text-sm tracking-wide ${
+                procesando || faltanPagosPorDeclarar
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-70'
+                  : 'bg-slate-900 hover:bg-black text-white cursor-pointer active:scale-[0.99]'
+              }`}
+              style={{ boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+            >
+              <span>Confirmar Cierre y Descargar Ticket 📥</span>
+            </button>
+
+            {faltanPagosPorDeclarar && (
+              <p className="text-[11px] font-semibold text-amber-700 bg-amber-100/70 border border-amber-200 px-3 py-1 text-center w-full">
+                ⚠️ Debes ingresar el monto contado en todos los métodos de pago habilitados para cerrar la caja.
+              </p>
+            )}
+          </div>
         )}
       </div>
 

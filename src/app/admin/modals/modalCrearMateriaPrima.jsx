@@ -1,7 +1,28 @@
+import { 
+  convertirMoneda, 
+  parseNum 
+} from '@/lib/utils/montoUtils';
+
 export default function ModalCrearMateriaPrima({
   show, onClose, onSubmit, nuevaMP, setNuevaMP, monedaMP, setMonedaMP, tasa = 1
 }) {
   if (!show) return null;
+
+  const tasaNum = parseNum(tasa, 1);
+
+  // Maneja el cambio de moneda convirtiendo automáticamente el costo actual si ya tiene un valor
+  const handleCambioMoneda = (nuevaMoneda) => {
+    if (monedaMP === nuevaMoneda) return;
+
+    if (nuevaMP.costo !== '' && nuevaMP.costo !== undefined) {
+      const costoConvertido = convertirMoneda(nuevaMP.costo, monedaMP, nuevaMoneda, tasaNum);
+      setNuevaMP(prev => ({
+        ...prev,
+        costo: costoConvertido === 0 ? '' : Number(costoConvertido).toFixed(2)
+      }));
+    }
+    setMonedaMP(nuevaMoneda);
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -42,14 +63,14 @@ export default function ModalCrearMateriaPrima({
                 <div className="flex bg-slate-200 p-0.5 rounded-lg text-[10px] font-bold">
                   <button 
                     type="button" 
-                    onClick={() => setMonedaMP('BS')} 
+                    onClick={() => handleCambioMoneda('BS')} 
                     className={`px-2 py-0.5 rounded-md transition-colors ${monedaMP === 'BS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
                   >
                     Bs.
                   </button>
                   <button 
                     type="button" 
-                    onClick={() => setMonedaMP('USD')} 
+                    onClick={() => handleCambioMoneda('USD')} 
                     className={`px-2 py-0.5 rounded-md transition-colors ${monedaMP === 'USD' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-300'}`}
                   >
                     $
@@ -62,9 +83,11 @@ export default function ModalCrearMateriaPrima({
                   value={nuevaMP.costo ?? ''} 
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === '') return setNuevaMP({...nuevaMP, costo: ''});
-                    const num = parseFloat(val);
-                    if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.99) {
+                    if (val === '') {
+                      setNuevaMP({...nuevaMP, costo: ''});
+                      return;
+                    }
+                    if (!val.toLowerCase().includes('e')) {
                       setNuevaMP({...nuevaMP, costo: val});
                     }
                   }} 
@@ -76,12 +99,12 @@ export default function ModalCrearMateriaPrima({
                 </span>
               </div>
               
-              {/* Equivalencia en tiempo real idéntica al modal de edición */}
+              {/* Equivalencia en tiempo real */}
               <div className="mt-2 text-right">
                 <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
                   Equivale a: {monedaMP === 'BS' 
-                    ? `USD ${(Number(nuevaMP.costo || 0) / tasa).toFixed(2)}` 
-                    : `Bs. ${(Number(nuevaMP.costo || 0) * tasa).toFixed(2)}`}
+                    ? `USD ${(Number(nuevaMP.costo || 0) / tasaNum).toFixed(2)}` 
+                    : `Bs. ${(Number(nuevaMP.costo || 0) * tasaNum).toFixed(2)}`}
                 </span>
               </div>
             </div>
@@ -94,9 +117,11 @@ export default function ModalCrearMateriaPrima({
               value={nuevaMP.stock ?? ''} 
               onChange={e => {
                 const val = e.target.value;
-                if (val === '') return setNuevaMP({...nuevaMP, stock: ''});
-                const num = parseFloat(val);
-                if (!isNaN(num) && !val.toLowerCase().includes('e') && num <= 999999.999) {
+                if (val === '') {
+                  setNuevaMP({...nuevaMP, stock: ''});
+                  return;
+                }
+                if (!val.toLowerCase().includes('e')) {
                   setNuevaMP({...nuevaMP, stock: val});
                 }
               }} 

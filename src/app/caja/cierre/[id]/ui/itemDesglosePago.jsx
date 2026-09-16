@@ -1,20 +1,36 @@
 export default function ItemDesglosePago({ item, contado, diferencia, icono, generandoImagen, onCambioContado }) {
+  const sinMovimiento = Number(item.monto_esperado || 0) === 0;
+
   return (
     <div 
-      className="group flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-white border border-stone-200 rounded-none transition-all gap-4"
+      className={`group flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border rounded-none transition-all gap-4 ${
+        sinMovimiento ? 'bg-stone-50/80 border-stone-200' : 'bg-white border-stone-200'
+      }`}
       style={{ boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}
     >
       <div className="flex items-start gap-3.5 flex-1">
-        <span className="text-2xl p-2 bg-stone-100 rounded-none border border-stone-200 flex items-center justify-center">
+        <span className={`text-2xl p-2 rounded-none border flex items-center justify-center ${
+          sinMovimiento ? 'bg-stone-100 border-stone-200 opacity-60' : 'bg-stone-100 border-stone-200'
+        }`}>
           {icono}
         </span>
         <div>
-          <span className="font-bold text-slate-900 text-base">{item.nombre}</span>
+          <span className={`font-bold text-base ${sinMovimiento ? 'text-slate-500' : 'text-slate-900'}`}>
+            {item.nombre}
+          </span>
           <div className="text-xs text-slate-600 mt-1 flex flex-col gap-0.5 font-medium">
-            <span>Esperado: <strong className="text-slate-900">{Number(item.monto_esperado || 0).toFixed(2)} {item.moneda}</strong></span>
-            {Number(item.monto_apertura) > 0 && (
-              <span className="text-[11px] text-slate-500">
-                (Apertura: {Number(item.monto_apertura).toFixed(2)} + Ventas: {Number(item.monto_ventas).toFixed(2)})
+            <span>
+              Esperado: <strong className={sinMovimiento ? 'text-slate-500' : 'text-slate-900'}>
+                {Number(item.monto_esperado || 0).toFixed(2)} {item.moneda}
+              </strong>
+            </span>
+            
+            {/* Desglose detallado */}
+            {(Number(item.monto_apertura) > 0 || Number(item.total_compras) > 0 || Number(item.total_gastos) > 0) && (
+              <span className="text-[11px] text-slate-500 leading-tight">
+                (Apt: {Number(item.monto_apertura || 0).toFixed(2)} + Ventas: {Number(item.monto_ventas || 0).toFixed(2)}
+                {Number(item.total_compras) > 0 && ` - Compras: ${Number(item.total_compras).toFixed(2)}`}
+                {Number(item.total_gastos) > 0 && ` - Gastos: ${Number(item.total_gastos).toFixed(2)}`})
               </span>
             )}
           </div>
@@ -24,10 +40,12 @@ export default function ItemDesglosePago({ item, contado, diferencia, icono, gen
       <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
         {/* Declarado */}
         <div className="text-right flex-1 sm:flex-none">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-1">Declarado</label>
+          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-1">
+            Declarado
+          </label>
           {generandoImagen ? (
             <div className="w-32 py-2 px-1 font-black text-slate-900 text-right text-base"> 
-              {Number(contado || 0).toFixed(2)} <span className="text-xs font-normal text-slate-500">{item.moneda}</span>
+              {Number(sinMovimiento ? 0 : contado || 0).toFixed(2)} <span className="text-xs font-normal text-slate-500">{item.moneda}</span>
             </div>
           ) : (
             <input
@@ -35,13 +53,13 @@ export default function ItemDesglosePago({ item, contado, diferencia, icono, gen
               placeholder="0.00"
               min="0"
               step="0.01"
-              value={contado !== undefined && contado !== 0 && contado !== '' ? contado : ''}
-              className="w-32 px-3 py-2 bg-white border-2 border-stone-400 rounded-none text-right font-black text-slate-900 text-base focus:outline-none focus:border-amber-700 transition-all"
-              style={{ 
-                color: '#0f172a', 
-                backgroundColor: '#ffffff',
-                boxShadow: 'inset 0 2px 4px 0 rgba(0,0,0,0.05)'
-              }}
+              disabled={sinMovimiento}
+              value={sinMovimiento ? '0.00' : (contado !== undefined && contado !== '' ? contado : '')}
+              className={`w-32 px-3 py-2 border-2 rounded-none text-right font-black text-base transition-all outline-none ${
+                sinMovimiento 
+                  ? 'bg-stone-100 border-stone-200 text-slate-400 cursor-not-allowed select-none opacity-80' 
+                  : 'bg-white border-stone-400 text-slate-900 focus:border-amber-700'
+              }`}
               onChange={(e) => onCambioContado(item.id_pago, e.target.value)}
             />
           )}

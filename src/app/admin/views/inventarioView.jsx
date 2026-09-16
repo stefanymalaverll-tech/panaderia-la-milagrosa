@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { verificarEsPanaderia } from '@/lib/utils';
+import { useState, useMemo } from 'react';
+import { verificarEsPanaderia } from '@/lib/utils/negocioUtils';
 
 const getPrecios = (precioUSD, precioBs, monedaBase, valorTasa) => {
   const esBaseBs = monedaBase === 'Bs' || monedaBase === 'BS';
@@ -32,6 +32,31 @@ export default function InventarioView({
 
   const valorTasa = Number(tasa) || 1;
 
+  const metricas = useMemo(() => {
+    let stockCritico = 0;
+    let productosActivos = 0;
+
+    productos.forEach(prod => {
+      const esActivo = prod.activo !== false && prod.activo !== 0;
+      const catObj = categorias.find(c => Number(c.id_categoria) === Number(prod.id_categoria));
+      const nombreCat = (catObj?.nombre || '').toLowerCase();
+      const esPanaderia = verificarEsPanaderia(nombreCat);
+
+      if (esActivo) {
+        productosActivos += 1;
+        if (!esPanaderia && Number(prod.stock) < 5) {
+          stockCritico += 1;
+        }
+      }
+    });
+
+    return { 
+      totalRegistrados: productos.length, 
+      productosActivos, 
+      stockCritico 
+    };
+  }, [productos, categorias]);
+
   // Filtrar productos según el Estado, Categoría y Búsqueda de Texto
   const productosFiltradosVista = productos.filter(p => {
     const esActivo = p.activo !== false && p.activo !== 0;
@@ -47,30 +72,30 @@ export default function InventarioView({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+      {/* 📊 Tarjetas de Métricas Operativas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Productos Activos</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{metricas.productosActivos} ítems</p>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Registrados</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{metricas.totalRegistrados} ítems</p>
+        </div>
+        <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
+          <p className="text-xs text-red-500 font-semibold uppercase tracking-wider">Stock Crítico (Menos de 5 unidades)</p>
+          <p className="text-2xl font-bold text-red-600 mt-1">{metricas.stockCritico} ítems</p>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">🥖 Catálogo e Inventario de Productos</h2>
+          <h2 className="text-lg font-bold text-slate-800">Inventario de Ventas</h2>
           {filtroEstado !== 'activos' && (
             <p className="text-xs text-blue-600 font-medium mt-0.5">
               ⚠️ Productos Archivados (fuera de Ventas)
             </p>
           )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowModalRegistroCompra(true)} 
-            className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
-          >
-            📦 Registrar Compra
-          </button>
-
-          <button 
-            onClick={() => setShowModalProducto(true)} 
-            className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm"
-          >
-            + Nuevo Producto
-          </button>
         </div>
       </div>
 

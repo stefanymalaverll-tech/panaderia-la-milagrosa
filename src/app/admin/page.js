@@ -12,12 +12,20 @@ import ModalRegistroCompra from '@/app/admin/modals/modalRegistroCompra';
 import ModalEditarProducto from '@/app/admin/modals/modalEditarProducto';
 import ModalCrearMateriaPrima from '@/app/admin/modals/modalCrearMateriaPrima';
 import ModalEditarMateriaPrima from '@/app/admin/modals/modalEditarMateriaPrima';
-import ModalTasaBCV from '@/app/admin/modals/modalTasaBCV';
-import ModalDetallesCaja from '@/app/admin/modals/modalDetallesCaja';
-import { LogOut } from 'lucide-react'; 
+import ModalParametrosGenerales from '@/app/admin/modals/modalParametrosGenerales';
+import ModalDetallesC from '../../componentes/modals/modalDetallesC';
+import ModalRegistroGasto from '@/app/admin/modals/modalRegistroGasto';
+import ModalAvanceEfectivo from '@/componentes/modals/modalAvanceEfectivo';
+import { useState } from 'react';
+import { LogOut, Plus, ChevronDown, PackagePlus, Receipt, Store, Banknote } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const h = useAdmin();
+
+  const [menuOperacionAbierto, setMenuOperacionAbierto] = useState(false);
+  const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
+  const [showModalGasto, setShowModalGasto] = useState(false);
+  const [modalAvanceAbierto, setModalAvanceAbierto] = useState(false);
 
   if (h.loading) {
     return (
@@ -27,57 +35,139 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // Buscamos la caja activa actual para pasársela al modal de gastos
+  const cajaActivaActual = h.historialCaja?.find(c => c.status?.toLowerCase() !== 'cerrado');
+
+  // Obtener iniciales del correo para el avatar
+  const obtenerIniciales = (email) => {
+    if (!email) return 'AD';
+    return email.substring(0, 2).toUpperCase();
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 font-sans pb-10 relative">
       <SmsNotificacion notificacion={h.notificacion} />
 
-      {/* HEADER */}
-      <header className="bg-slate-900 text-white px-4 md:px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-3 shadow-md">
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🍞</span>
-            <div>
-              <h1 className="text-sm font-bold tracking-wide uppercase text-amber-400">LA MILAGROSA</h1>
-              <p className="text-[11px] text-slate-300">Panel de Administración</p>
-            </div>
+      {/* HEADER REDISEÑADO */}
+<header className="bg-slate-900 border-b border-slate-800 text-slate-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+  <div className="flex items-center gap-3">
+    <div className="p-2 bg-slate-800 border border-slate-700 rounded-md">
+      <Store className="w-5 h-5 text-amber-500" strokeWidth={2} />
+    </div>
+    <div>
+      <h1 className="text-base font-bold tracking-wide text-white">LA MILAGROSA</h1>
+      <p className="text-xs text-slate-400">Sistema Administrativo - Panel de Control</p>
+    </div>
+  </div>
+
+  <div className="flex items-center gap-3">
+    {/* Botón de Parámetros Generales (Tasa y Comisión) */}
+    <button 
+      onClick={() => h.setShowModalTasa(true)}
+      className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-md transition-colors flex items-center gap-2 text-xs shadow-sm"
+    >
+      <Banknote className="w-4 h-4 text-slate-400" />
+      <div className="flex flex-col items-start leading-none">
+        <span className="text-[10px] text-slate-400 uppercase tracking-wider">Tasa BCV</span>
+        <span className="font-bold text-amber-400">Bs. {h.tasaBCV.toFixed(2)}</span>
+      </div>
+    </button>
+
+    {/* Menú de Operaciones */}
+    <div className="relative">
+      <button
+        onClick={() => setMenuOperacionAbierto(!menuOperacionAbierto)}
+        className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-md font-semibold text-xs transition-colors flex items-center gap-2 shadow-sm"
+      >
+        <Plus className="w-4 h-4" strokeWidth={2} />
+        <span>Registrar</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${menuOperacionAbierto ? 'rotate-180' : ''}`} />
+      </button>
+
+      {menuOperacionAbierto && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOperacionAbierto(false)}></div>
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-slate-200 z-50 text-slate-700 text-xs flex flex-col">
+            <div className="px-3 py-2 text-[10px] font-bold uppercase text-slate-400 border-b border-slate-100 bg-slate-50">Registros</div>
+            <button onClick={() => { h.setShowModalRegistroCompra(true); setMenuOperacionAbierto(false); }} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100">
+              <PackagePlus className="w-4 h-4 text-slate-500" /> Entrada de Mercancía
+            </button>
+            <button onClick={() => { setModalAvanceAbierto(true); setMenuOperacionAbierto(false); }} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100">
+              <Banknote className="w-4 h-4 text-slate-500" /> Avance de Efectivo
+            </button>
+            <button onClick={() => { setShowModalGasto(true); setMenuOperacionAbierto(false); }} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100">
+              <Receipt className="w-4 h-4 text-slate-500" /> Gasto Operativo
+            </button>
+            <button onClick={() => { h.setShowModalProducto(true); setMenuOperacionAbierto(false); }} className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-center gap-2">
+              <Store className="w-4 h-4 text-slate-500" /> Nuevo Producto
+            </button>
           </div>
+        </>
+      )}
+    </div>
+
+    {/* Menú de Usuario */}
+    <div className="relative border-l border-slate-700 pl-3">
+      <button
+        onClick={() => setMenuUsuarioAbierto(!menuUsuarioAbierto)}
+        className="flex items-center gap-2 hover:bg-slate-800 p-1.5 rounded-md transition-colors text-left"
+      >
+        <div className="w-8 h-8 rounded-md bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-xs border border-slate-600">
+          {obtenerIniciales(h.usuario?.email)}
         </div>
+        <ChevronDown className="w-3 h-3 text-slate-500" />
+      </button>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs w-full sm:w-auto">
-          <button 
-            onClick={() => h.setShowModalTasa(true)}
-            className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-          >
-            <span className="text-slate-300">💵 Tasa:</span>
-            <span className="font-bold text-amber-400">Bs. {h.tasaBCV.toFixed(2)} ✏️</span>
-          </button>
+      {menuUsuarioAbierto && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setMenuUsuarioAbierto(false)}
+          ></div>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden text-slate-700 text-xs flex flex-col py-1.5">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-bold text-xs shadow-sm shrink-0">
+                      {obtenerIniciales(h.usuario?.email)}
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Conectado como</p>
+                      <p className="font-bold text-slate-800 truncate mt-0.5" title={h.usuario?.email}>{h.usuario?.email}</p>
+                    </div>
+                  </div>
 
-          <div className="bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700 hidden md:block">
-            <span className="text-slate-300">👤 Admin: </span>
-            <span className="font-bold text-white truncate max-w-[150px] inline-block align-bottom">{h.usuario?.email}</span>
+                  <button
+                    onClick={() => { setMenuUsuarioAbierto(false); h.handleLogout(); }}
+                    className="w-full text-left px-4 py-3 hover:bg-red-50 flex items-center gap-3 text-red-600 font-semibold transition-colors cursor-pointer mt-1 border-t border-slate-100"
+                  >
+                    <LogOut className="w-4 h-4" strokeWidth={2} />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-
-          {/* Botón: Cerrar Sesión Estilizado */}
-          <button
-            onClick={h.handleLogout}
-            title="Cerrar Sesión"
-            className="p-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-600/30 rounded-xl transition-all cursor-pointer shadow-sm group flex items-center justify-center"
-          >
-            <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" strokeWidth={1.5}/>
-          </button>
         </div>
       </header>
 
-      {/* MENÚ DE PESTAÑAS */}
-      <nav className="bg-white border-b border-slate-200 px-4 md:px-6 py-2 flex gap-2 overflow-x-auto shadow-sm">
-        <button onClick={() => h.setPestanaActiva('dashboard')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${h.pestanaActiva === 'dashboard' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>📊 Inicio</button>
-        <button onClick={() => h.setPestanaActiva('caja')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${h.pestanaActiva === 'caja' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>💵 Control de Caja</button>
-        <button onClick={() => h.setPestanaActiva('inventario')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${h.pestanaActiva === 'inventario' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>🥖 Productos y Stock</button>
-        <button onClick={() => h.setPestanaActiva('materiaprima')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${h.pestanaActiva === 'materiaprima' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>🌾 Materia Prima (Producción)</button>
-        <button onClick={() => h.setPestanaActiva('usuarios')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${h.pestanaActiva === 'usuarios' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>👥 Control de Accesos</button>
+      {/* PESTAÑAS MÁS SOBRIAS */}
+      <nav className="bg-white border-b border-slate-200 px-6 flex gap-1 overflow-x-auto">
+        {[
+          { id: 'dashboard', label: 'Inicio' },
+          { id: 'caja', label: 'Control de Caja' },
+          { id: 'inventario', label: 'Inventario de Ventas' },
+          { id: 'materiaprima', label: 'Materia Prima' },
+          { id: 'usuarios', label: 'Control de Accesos' }
+        ].map(tab => (
+          <button 
+            key={tab.id}
+            onClick={() => h.setPestanaActiva(tab.id)} 
+            className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 ${h.pestanaActiva === tab.id ? 'border-amber-600 text-amber-700 bg-amber-50/50' : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </nav>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {h.pestanaActiva === 'dashboard' && (
           <DashboardView 
@@ -85,10 +175,8 @@ export default function AdminDashboardPage() {
             productosStockBajo={h.productosStockBajo} 
             productosMasVendidos={h.productosMasVendidos} 
             onVerFacturasClick={() => {
-              const cajaActiva = h.historialCaja.find(c => c.status?.toLowerCase() !== 'cerrado'); 
-              
-              if (cajaActiva) {
-                h.handleVerDetallesCaja(cajaActiva); 
+              if (cajaActivaActual) {
+                h.handleVerDetallesCaja(cajaActivaActual); 
               } else {
                 alert("No hay un turno de caja abierto en este momento.");
               }
@@ -133,7 +221,19 @@ export default function AdminDashboardPage() {
       </main>
 
       {/* MODALES */}
-      <ModalCrearProducto show={h.showModalProducto} onClose={() => h.setShowModalProducto(false)} onSubmit={h.handleCrearProducto} nuevoProd={h.nuevoProd} setNuevoProd={h.setNuevoProd} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPrecios={h.monedaPrecios} setMonedaPrecios={h.setMonedaPrecios} tasa={h.tasaBCV} />
+      <ModalCrearProducto 
+        show={h.showModalProducto} 
+        onClose={() => h.setShowModalProducto(false)} 
+        onSubmit={(e) => h.handleGuardarProducto(e, false)} 
+        nuevoProd={h.nuevoProd} 
+        setNuevoProd={h.setNuevoProd} 
+        categorias={h.categorias} 
+        iconosDisponibles={h.iconosDisponibles} 
+        monedaPrecios={h.monedaPrecios} 
+        setMonedaPrecios={h.setMonedaPrecios} 
+        tasa={h.tasaBCV} 
+      />
+      
       <ModalRegistroCompra 
         show={h.showModalRegistroCompra} 
         onClose={() => h.setShowModalRegistroCompra(false)} 
@@ -143,11 +243,80 @@ export default function AdminDashboardPage() {
           h.cargarDatos?.();
         }} 
       />
-      <ModalEditarProducto show={h.showModalEditarProd} onClose={() => h.setShowModalEditarProd(false)} onSubmit={h.handleActualizarProducto} prodEditando={h.prodEditando} setProdEditando={h.setProdEditando} categorias={h.categorias} iconosDisponibles={h.iconosDisponibles} monedaPreciosEdit={h.monedaPreciosEdit} setMonedaPreciosEdit={h.setMonedaPreciosEdit} tasa={h.tasaBCV} />
-      <ModalCrearMateriaPrima show={h.showModalMP} onClose={() => h.setShowModalMP(false)} onSubmit={h.handleCrearMateriaPrima} nuevaMP={h.nuevaMP} setNuevaMP={h.setNuevaMP} monedaMP={h.monedaMP} setMonedaMP={h.setMonedaMP} tasa={h.tasaBCV}/>
-      <ModalEditarMateriaPrima show={h.showModalEditarMP} onClose={() => h.setShowModalEditarMP(false)} onSubmit={h.handleActualizarMateriaPrima} mpEditando={h.mpEditando} setMpEditando={h.setMpEditando} monedaMPEdit={h.monedaMPEdit} setMonedaMPEdit={h.setMonedaMPEdit} tasa={h.tasaBCV} />
-      <ModalTasaBCV show={h.showModalTasa} onClose={() => h.setShowModalTasa(false)} onSubmit={h.handleActualizarTasa} nuevaTasaInput={h.nuevaTasaInput} setNuevaTasaInput={h.setNuevaTasaInput} />
-      <ModalDetallesCaja show={h.showModalDetallesCaja} onClose={() => h.setShowModalDetallesCaja(false)} cajaSeleccionada={h.cajaSeleccionada} ordenesCaja={h.ordenesCaja} cargandoOrdenes={h.cargandoOrdenes} onEliminarOrden={h.setOrdenAEliminar} />
+
+      <ModalRegistroGasto 
+        isOpen={showModalGasto}
+        onClose={() => setShowModalGasto(false)}
+        tasaBcv={h.tasaBCV}
+        idUsuario={h.usuario?.id_usuario}
+        idCajaActual={cajaActivaActual?.id_caja || null}
+      />
+
+      {modalAvanceAbierto && (
+        <ModalAvanceEfectivo 
+          idCaja={cajaActivaActual?.id_caja} 
+          onClose={() => setModalAvanceAbierto(false)}
+          onExito={() => {
+            setModalAvanceAbierto(false);
+            h.cargarDatos?.();
+          }}
+        />
+      )}
+
+      <ModalEditarProducto 
+        show={h.showModalEditarProd} 
+        onClose={() => h.setShowModalEditarProd(false)} 
+        onSubmit={(e) => h.handleGuardarProducto(e, true)} 
+        prodEditando={h.prodEditando} 
+        setProdEditando={h.setProdEditando} 
+        categorias={h.categorias} 
+        iconosDisponibles={h.iconosDisponibles} 
+        monedaPreciosEdit={h.monedaPreciosEdit} 
+        setMonedaPreciosEdit={h.setMonedaPreciosEdit} 
+        tasa={h.tasaBCV} 
+      />
+
+      <ModalCrearMateriaPrima 
+        show={h.showModalMP} 
+        onClose={() => h.setShowModalMP(false)} 
+        onSubmit={(e) => h.handleGuardarMateriaPrima(e, false)} 
+        nuevaMP={h.nuevaMP} 
+        setNuevaMP={h.setNuevaMP} 
+        monedaMP={h.monedaMP} 
+        setMonedaMP={h.setMonedaMP} 
+        tasa={h.tasaBCV}
+      />
+
+      <ModalEditarMateriaPrima 
+        show={h.showModalEditarMP} 
+        onClose={() => h.setShowModalEditarMP(false)} 
+        onSubmit={(e) => h.handleGuardarMateriaPrima(e, true)} 
+        mpEditando={h.mpEditando} 
+        setMpEditando={h.setMpEditando} 
+        monedaMPEdit={h.monedaMPEdit} 
+        setMonedaMPEdit={h.setMonedaMPEdit} 
+        tasa={h.tasaBCV} 
+      />
+
+      {/* MODAL PARÁMETROS GENERALES */}
+      <ModalParametrosGenerales 
+        show={h.showModalTasa} 
+        onClose={() => h.setShowModalTasa(false)} 
+        onSubmit={h.handleActualizarParametros} 
+        nuevaTasaInput={h.nuevaTasaInput} 
+        setNuevaTasaInput={h.setNuevaTasaInput}
+        nuevaComisionInput={h.nuevaComisionInput}
+        setNuevaComisionInput={h.setNuevaComisionInput}
+      />
+
+      <ModalDetallesC 
+        show={h.showModalDetallesCaja} 
+        onClose={() => h.setShowModalDetallesCaja(false)} 
+        cajaSeleccionada={h.cajaSeleccionada} 
+        ordenesCaja={h.ordenesCaja} 
+        cargandoOrdenes={h.cargandoOrdenes} 
+        onEliminarOrden={h.setOrdenAEliminar} 
+      />
 
       {/* MODAL CONFIRMAR ELIMINACIÓN DE ORDEN */}
       {h.ordenAEliminar && (

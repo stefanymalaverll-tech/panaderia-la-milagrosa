@@ -1,56 +1,75 @@
+import { useState, useEffect } from 'react';
+
 export default function BalanceVuelto({ caja }) {
   const {
     vueltoUSD, vueltoBs, faltanteUSD, faltanteBs, totalPagarBs,
-    idMetodoVuelto, setIdMetodoVuelto, metodosPagoBD
+    carrito, pagosRegistrados = []
   } = caja;
 
+  const esVuelto = vueltoUSD >= 0.01;
+  const esCubierta = (faltanteBs <= 0.05 || faltanteUSD <= 0.01) && totalPagarBs > 0;
+
+  const hayPagos = Boolean(pagosRegistrados && pagosRegistrados.length > 0);
+  const hayCarrito = Boolean(carrito && carrito.length > 0);
+
+  const isVisible = hayCarrito && hayPagos;
+
+  // Estado congelado para mantener los valores visuales durante el desvanecimiento
+  const [ultimoEstadoValido, setUltimoEstadoValido] = useState(null);
+
+  useEffect(() => {
+    if (isVisible) {
+      setUltimoEstadoValido({
+        esVuelto,
+        esCubierta,
+        montoBs: esVuelto ? vueltoBs : (esCubierta ? 0 : faltanteBs),
+        montoUSD: esVuelto ? vueltoUSD : (esCubierta ? 0 : faltanteUSD)
+      });
+    }
+  }, [isVisible, esVuelto, esCubierta, vueltoBs, vueltoUSD, faltanteBs, faltanteUSD]);
+
+  // Usamos los datos actuales o los congelados de la última vez que fue visible
+  const datosAMostrar = isVisible ? {
+    esVuelto,
+    esCubierta,
+    montoBs: esVuelto ? vueltoBs : (esCubierta ? 0 : faltanteBs),
+    montoUSD: esVuelto ? vueltoUSD : (esCubierta ? 0 : faltanteUSD)
+  } : ultimoEstadoValido;
+
+  const { esVuelto: ev, esCubierta: ec, montoBs, montoUSD } = datosAMostrar || {};
+
   return (
-    <div className={`p-3 rounded-2xl border text-xs flex flex-col gap-2 transition-all ${
-      vueltoBs > 0 
-        ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-        : faltanteBs === 0 && totalPagarBs > 0
-        ? 'bg-emerald-100 border-emerald-400 text-emerald-950 font-bold'
-        : 'bg-amber-50 border-amber-300 text-amber-950'
-    }`}>
-      <div className="flex justify-between items-center">
-        <div>
-          <span className="text-[10px] font-extrabold uppercase block">
-            {vueltoBs > 0 
-              ? '🟢 Vuelto a entregar:' 
-              : faltanteBs === 0 
-              ? '✅ Orden Cubierta' 
-              : '🟡 Restante por cobrar:'}
+    /* El contenedor externo SIEMPRE se renderiza en el DOM reservando sus 28px */
+    <div className="h-[28px] flex flex-col justify-center shrink-0 bg-transparent overflow-hidden">
+      
+      <div className={`transition-opacity duration-300 ease-in-out flex items-center justify-between px-1 ${
+        isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}>
+        
+        {/* TEXTO DE ESTADO */}
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${
+          ev ? 'text-indigo-500' : ec ? 'text-emerald-500' : 'text-rose-500'
+        }`}>
+          {ev ? '💵 Vuelto a entregar:' : ec ? '✅ Orden cubierta:' : '🔴 Faltante por pagar:'}
+        </span>
+        
+        <div className="flex items-baseline gap-1.5">
+          {/* MONTO PRINCIPAL EN BS */}
+          <span className={`text-base font-black leading-none ${
+            ev ? 'text-indigo-600' : ec ? 'text-emerald-600' : 'text-rose-600'
+          }`}>
+            Bs. {Number(montoBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <p className="text-sm md:text-base font-black">
-            Bs. {(vueltoBs > 0 ? vueltoBs : faltanteBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-bold text-slate-700">
-            ${(vueltoBs > 0 ? vueltoUSD : faltanteUSD).toFixed(2)} USD
-          </p>
+          
+          {/* MONTO REF */}
+          <span className={`text-[10px] font-bold leading-none ${
+            ev ? 'text-indigo-400' : ec ? 'text-emerald-400' : 'text-rose-400'
+          }`}>
+            Ref. ${Number(montoUSD || 0).toFixed(2)}
+          </span>
+
         </div>
       </div>
-
-      {vueltoBs > 0 && (
-        <div className="pt-2 border-t border-emerald-200 flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-emerald-900 uppercase">
-            ¿De qué caja/método entregas el vuelto?
-          </label>
-          <select
-            value={idMetodoVuelto}
-            onChange={(e) => setIdMetodoVuelto(e.target.value)}
-            className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="">-- Seleccionar origen del vuelto --</option>
-            {metodosPagoBD.map(m => (
-              <option key={m.id_pago} value={m.id_pago}>
-                {m.nombre} ({m.moneda})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   );
 }

@@ -8,7 +8,8 @@ import { toJpeg } from 'html-to-image';
 export function useCierre() {
   const router = useRouter();
   const { id } = useParams();
-  
+  const [tasa, setTasa] = useState(1);
+
   const [cargando, setCargando] = useState(true);
   const [desglosePagos, setDesglosePagos] = useState([]);
   const [montosContados, setMontosContados] = useState({});
@@ -36,6 +37,17 @@ export function useCierre() {
       try {
         const idCajaNum = parseInt(id, 10);
 
+        // Obtener la tasa BCV actual para mostrarla en el resumen financiero
+        const { data: configData, error: errorConfig } = await supabase
+          .from('configuracion') 
+          .select('tasa_bcv')
+          .single();
+        
+        if (!errorConfig && configData) {
+          setTasa(Number(configData.tasa_bcv || 1));
+        }
+        
+        //Contar ordenes
         const { data: resTotales, error: errorTotales } = await supabase.rpc('calcular_totales_cierre', {
           p_id_caja: idCajaNum 
         });
@@ -188,6 +200,7 @@ export function useCierre() {
     obtenerIconoPago,
     subtotalBs,
     subtotalUsd,
+    tasa,
     procesarArqueoCierre
   };
 }
