@@ -136,6 +136,16 @@ export function useAdmin() {
       }
       setUsuario(usuarioBD);
 
+      const { data: cajaAbierta } = await supabase
+        .from('caja')
+        .select('id_caja')
+        .eq('status', 'Abierto') 
+        .order('hora_apertura', { ascending: false })
+        .limit(1)
+        .maybeSingle(); 
+        
+      const cajaAbiertaId = cajaAbierta ? cajaAbierta.id_caja : null;
+
       const [
         resConfig,
         resStockBajo,
@@ -155,8 +165,8 @@ export function useAdmin() {
         supabase.from('icono_producto').select('*'),
         supabase.from('materia_prima').select('*').order('nombre'),
         supabase.from('usuario').select('*'),
-        supabase.from('orden').select('total_usd, id_orden, id_caja').gte('hora_orden', new Date().toISOString().split('T')[0]),      
-        supabase.from('detalle_orden').select('cantidad, id_orden, producto(id_producto, nombre, icono_producto(simbolo))'),
+        supabase.from('orden').select('total_usd, id_orden, id_caja').eq('id_caja', cajaAbiertaId || 0),
+        supabase.from('detalle_orden').select('cantidad, id_orden, producto(id_producto, nombre, icono_producto(simbolo)),orden!inner(id_caja)').eq('orden.id_caja', cajaAbiertaId || 0),
         supabase.from('caja').select('*, usuario(nombre), detalle_cierre_caja(monto_esperado, monto_contado, diferencia, pago(nombre, moneda))').order('hora_apertura', { ascending: false }).limit(20)
       ]);
 
@@ -184,15 +194,9 @@ export function useAdmin() {
       if (resMP.data) setMateriaPrima(resMP.data);
       if (resUsuarios.data) setUsuariosSistema(resUsuarios.data);
 
-      let cajaAbiertaId = null;
-
       if (resCajas.data) {
         setHistorialCajas(resCajas.data);
-        
-        const cajaActiva = resCajas.data.find(c => c.status?.toLowerCase() === 'abierto');
-        if (cajaActiva) cajaAbiertaId = cajaActiva.id_caja;
         setCajaAbiertaIdGlobal(cajaAbiertaId);
-
         setStatsCaja(calcularEstadisticasCajas(resCajas.data));
       }
 
