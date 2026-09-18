@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { parseNum } from '@/lib/utils/montoUtils';
+import { parseNum, obtenerMontoFlotante } from '@/lib/utils/montoUtils';
+import InputMontoBase from '@/componentes/ui/inputMontoBase';
 import { 
   verificarEsPanaderia, 
   calcularPreciosPorMargen, 
@@ -84,8 +85,8 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
     }
 
     const cant = parseNum(campo === 'cantidad' ? valor : nuevos[index].cantidad, 0);
-    const totalLinea = parseNum(campo === 'costo_total' ? valor : nuevos[index].costo_total, 0);
-
+    const totalLinea = obtenerMontoFlotante(campo === 'costo_total' ? valor : nuevos[index].costo_total);
+    
     if (cant > 0 && totalLinea > 0) {
       nuevos[index].costo_unitario = Number((totalLinea / cant).toFixed(4));
     } else {
@@ -101,7 +102,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
 
   const calcularTotalGeneral = () => {
     return itemsCompra.reduce((acc, item) => {
-      return acc + parseNum(item.costo_total, 0);
+      return acc + obtenerMontoFlotante(item.costo_total);
     }, 0);
   };
 
@@ -122,11 +123,11 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
       return;
     }
 
-    const tasaSegura = parseNum(tasaAplicada, 1);
+    const tasaSegura = obtenerMontoFlotante(tasaAplicada, 1);
     const costoUnitarioActual = parseNum(itemsCompra[indiceFilaObjetivo]?.costo_unitario, 0);
 
     try {
-      let idGenerado = '';
+      let idGenerado = ''; 
 
       if (tipoNuevoItem === 'producto') {
         if (!idCatNuevoProd) {
@@ -221,7 +222,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
 
     setCargando(true);
     try {
-      const tasaSegura = parseNum(tasaAplicada, 1); 
+      const tasaSegura = obtenerMontoFlotante(tasaAplicada, 1); 
       const totalGastado = parseNum(calcularTotalGeneral(), 0);
       const idUsuario = usuarioActual?.id_usuario || 1;
 
@@ -240,7 +241,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
           id_usuario: Number(idUsuario),
           id_caja: pagadoDeCaja && cajaActiva ? cajaActiva.id_caja : null,
           observaciones: observaciones ? observaciones.trim() : null,
-          created_at: fechaISO
+          fecha: fechaISO
         }])
         .select()
         .single();
@@ -250,7 +251,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
 
       for (const item of itemsCompra) {
         const cantidadSegura = parseNum(item.cantidad, 0);
-        const costoTotalSeguro = parseNum(item.costo_total, 0);
+        const costoTotalSeguro = obtenerMontoFlotante(item.costo_total);
         const costoUnitarioSeguro = cantidadSegura > 0 ? costoTotalSeguro / cantidadSegura : 0;
         const subtotal = Number(costoTotalSeguro.toFixed(2));
         const isProducto = item.tipo === 'producto';
@@ -264,8 +265,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
             id_materiaprima: !isProducto ? Number(item.id_item) : null,
             cantidad: Number(cantidadSegura.toFixed(2)),
             costo_unitario: Number(costoUnitarioSeguro.toFixed(4)),
-            subtotal,
-            created_at: fechaISO
+            subtotal
           }]);
 
         if (errorDetalle) throw errorDetalle;
@@ -391,13 +391,10 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
               {/* Tasa Aplicada (BCV) */}
               <div className="sm:col-span-6">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Tasa Aplicada (BCV)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  min="0.01"
-                  value={tasaAplicada ?? ''} 
-                  onChange={(e) => setTasaAplicada(e.target.value)} 
-                  onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
+                <InputMontoBase 
+                  value={tasaAplicada} 
+                  onChange={(formateado) => setTasaAplicada(formateado)} 
+                  placeholder="0,00"
                   required
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm"
                 />
@@ -444,7 +441,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
                     </select>
                   </div>
 
-                  {/* Artículo (Ahora con col-span-5 para darle mayor amplitud al selector) */}
+                  {/* Artículo*/}
                   <div className="md:col-span-5">
                     <span className="block md:hidden text-[10px] font-semibold text-slate-500 mb-0.5">Artículo</span>
                     <select 
@@ -480,7 +477,7 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
                     </select>
                   </div>
 
-                  {/* Cantidad y Costo Total en una sub-grid para móviles */}
+                  {/* Cantidad y Costo Total*/}
                   <div className="grid grid-cols-2 md:contents gap-2">
                     <div className="md:col-span-2">
                       <span className="block md:hidden text-[10px] font-semibold text-slate-500 mb-0.5">Cantidad</span>
@@ -499,14 +496,10 @@ export default function ModalRegistroCompra({ show, onClose, usuarioActual, caja
 
                     <div className="md:col-span-2">
                       <span className="block md:hidden text-[10px] font-semibold text-slate-500 mb-0.5">Costo Total</span>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={item.costo_total ?? ''} 
-                        onChange={(e) => actualizarFila(index, 'costo_total', e.target.value)} 
-                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
+                      <InputMontoBase 
+                        placeholder="0,00"
+                        value={item.costo_total} 
+                        onChange={(formateado) => actualizarFila(index, 'costo_total', formateado)} 
                         required
                         className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center"
                       />
