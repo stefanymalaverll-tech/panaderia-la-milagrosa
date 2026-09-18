@@ -332,7 +332,6 @@ export function useCaja() {
         es_panaderia: item.esPanaderia
       }));
 
-      // AQUI ELIMINAMOS telefono_cliente Y cedula_cliente
       let pagosList = pagosRegistrados.map(p => ({
         id_pago: p.id_pago, monto_ingresado: p.montoIngresado, monto_usd: p.montoUSD, monto_bs: p.montoBs,
         numero_referencia: p.numero_referencia, es_vuelto: false
@@ -341,7 +340,6 @@ export function useCaja() {
       if (vueltoUSD > 0) {
         const metodoVueltoObj = metodosPagoBD.find(m => String(m.id_pago) === String(idMetodoVuelto));
         const esVueltoBs = metodoVueltoObj?.moneda === 'Bs';
-        // AQUI TAMBIEN SE ELIMINARON LOS CAMPOS RESTANTES
         pagosList.push({
           id_pago: parseInt(idMetodoVuelto), monto_ingresado: esVueltoBs ? -vueltoBs : -vueltoUSD,
           monto_usd: -vueltoUSD, monto_bs: -vueltoBs, numero_referencia: null, es_vuelto: true
@@ -361,7 +359,16 @@ export function useCaja() {
       setNumOrden(prev => prev + 1);
       await cargarProductos();
     } catch (error) {
-      mostrarMensaje(`❌ Ocurrió un error. Intenta nuevamente.`, 'error');
+      const mensajeError = error.message?.toLowerCase() || '';
+      if (mensajeError.includes('caja') || mensajeError.includes('cerrada') || error.code === 'P0001') {
+        mostrarMensaje('⚠️ La caja fue cerrada desde otro dispositivo.', 'error');
+        
+        // Bloqueamos la venta local y obligamos a abrir caja de nuevo
+        setCajaActiva(null);
+        setModalAperturaVisible(true);
+      } else {
+        mostrarMensaje(`❌ Ocurrió un error al procesar la venta. Intenta nuevamente.`, 'error');
+      }
     } finally {
       setProcesando(false);
     }

@@ -18,66 +18,67 @@ export default function HeaderCaja({ caja }) {
 
   return (
     <>
-      <header className="bg-slate-900 border-b border-slate-800 text-slate-200 px-3 md:px-5 py-2 flex flex-col md:flex-row justify-between items-center gap-2 shadow-md">
+      <header className="bg-slate-900 border-b border-slate-800 text-slate-200 px-3 md:px-5 py-2 flex items-center justify-between gap-2 shadow-md">
         {/* Identificación del Punto de Venta */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-slate-800 border border-slate-700 rounded-md">
-              <Store className="w-4 h-4 text-amber-500" strokeWidth={2} />
-            </div>
-            <div>
-              <h1 className="text-xs font-black tracking-wide text-white uppercase leading-tight">LA MILAGROSA</h1>
-              <p className="text-[10px] text-slate-400 leading-tight">Punto de Venta e Inventario</p>
-            </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="p-1.5 bg-slate-800 border border-slate-700 rounded-lg">
+            <Store className="w-4 h-4 text-amber-500" strokeWidth={2} />
+          </div>
+          <div>
+            <h1 className="text-xs font-black tracking-wide text-white uppercase leading-none">LA MILAGROSA</h1>
+            <p className="text-[10px] text-slate-400 leading-tight hidden sm:block mt-0.5">Punto de Venta e Inventario</p>
           </div>
         </div>
 
         {/* Controles y Operaciones de Caja */}
-        <div className="flex flex-wrap items-center justify-end gap-2 text-xs w-full md:w-auto">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 text-xs">
           
           {/* Tasa BCV */}
-          <div className="bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-sm">
-            <Banknote className="w-4 h-4 text-slate-400" />
-            <div className="flex flex-col items-start leading-none">
-              <span className="text-[9px] text-slate-400 uppercase tracking-wider">Tasa BCV</span>
-              <span className="font-bold text-amber-400 text-xs">Bs. {tasaBCV?.toFixed(2)}</span>
+          <div className="bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-sm shrink-0">
+            <Banknote className="w-3.5 h-3.5 text-amber-400 sm:text-slate-400 shrink-0" />
+            <div className="flex flex-col leading-none">
+              <span className="text-[8px] text-slate-400 uppercase tracking-wider hidden sm:inline">Tasa BCV</span>
+              <span className="font-bold text-amber-400 text-[11px] sm:text-xs">Bs. {tasaBCV?.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* 1. Avance de Efectivo */}
-          <button
-            onClick={() => setModalAvanceAbierto(true)}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer text-xs"
-          >
-            <HandCoins className="w-4 h-4" />
-            <span>Avance de Efectivo</span>
-          </button>
+          {/* Acciones de Caja */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+             <button
+              onClick={() => setModalAvanceAbierto(true)}
+              title="Avance de Efectivo"
+              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer text-xs shrink-0"
+            >
+              <HandCoins className="w-4 h-4" />
+              <span className="hidden md:inline">Avance de Efectivo</span>
+            </button>
 
-          {/* 2. Ver Ventas del Día */}
-          <button
-            onClick={handleAbrirMisVentas}
-            title="Mis Ventas del Día"
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-md transition-colors cursor-pointer shadow-sm"
-          >
-            <ClipboardList className="w-4 h-4" strokeWidth={2} />
-          </button>
+            {/* 2. Ver Ventas del Día */}
+            <button
+              onClick={handleAbrirMisVentas}
+              title="Mis Ventas del Día"
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+            >
+              <ClipboardList className="w-4 h-4" strokeWidth={2} />
+            </button>
 
-          {/* 3. Cierre de Caja (Abre Alerta) */}
-          <button
-            onClick={() => setModalConfirmCierre(true)}
-            title="Cierre de Caja"
-            className="p-1.5 bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white border border-amber-600/30 rounded-md transition-colors cursor-pointer shadow-sm"
-          >
-            <Lock className="w-4 h-4" strokeWidth={2} />
-          </button>
+            {/* 3. Cierre de Caja */}
+            <button
+              onClick={() => setModalConfirmCierre(true)}
+              title="Cierre de Caja"
+              className="p-1.5 bg-amber-600/20 text-amber-400 hover:bg-amber-600 hover:text-white border border-amber-600/30 rounded-lg transition-colors cursor-pointer shadow-sm shrink-0"
+            >
+              <Lock className="w-4 h-4" strokeWidth={2} />
+            </button>
+          </div>
 
           {/* Menú Dropdown del Usuario */}
-          <div className="relative border-l border-slate-700 pl-2 ml-0.5">
+          <div className="relative border-l border-slate-800 pl-1.5 sm:pl-2 ml-0.5 shrink-0">
             <button
               onClick={() => setMenuUsuarioAbierto(!menuUsuarioAbierto)}
-              className="flex items-center gap-1.5 hover:bg-slate-800 p-1 rounded-md transition-colors text-left cursor-pointer"
+              className="flex items-center gap-1 hover:bg-slate-800 p-1 rounded-lg transition-colors cursor-pointer"
             >
-              <div className="w-7 h-7 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs border border-amber-500/30">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs border border-amber-500/30">
                 {obtenerIniciales(usuario?.email)}
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -117,7 +118,7 @@ export default function HeaderCaja({ caja }) {
         </div>
       </header>
 
-      {/* MODAL CONFIRMACIÓN DE CIERRE (DISEÑO BLANCO / LIGERO) */}
+      {/* MODAL CONFIRMACIÓN DE CIERRE */}
       {modalConfirmCierre && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-xs w-full p-5 shadow-2xl text-slate-700 flex flex-col items-center text-center space-y-4">
@@ -144,7 +145,7 @@ export default function HeaderCaja({ caja }) {
                 onClick={confirmarCierre}
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2 px-3 rounded-lg text-xs transition-colors cursor-pointer shadow-sm shadow-amber-500/30"
               >
-                Si, continuar
+                Sí, continuar
               </button>
             </div>
 

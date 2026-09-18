@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import InputMontoBase from '@/componentes/ui/inputMontoBase';
 
 export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
-  const [montoSolicitado, setMontoSolicitado] = useState('');
+  const [montoDisplay, setMontoDisplay] = useState('');
+  const [montoNum, setMontoNum] = useState(0);
   const [porcentajeComision, setPorcentajeComision] = useState('15');
   const [cargandoComision, setCargandoComision] = useState(true);
   const [metodoIngreso, setMetodoIngreso] = useState('punto'); 
@@ -14,7 +16,7 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
   useEffect(() => {
     const obtenerComisionBD = async () => {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('parametros')
           .select('valor')
           .eq('clave', 'comision_avance')
@@ -23,8 +25,7 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
         if (data && data.valor !== undefined) {
           setPorcentajeComision(data.valor.toString());
         }
-      } catch (err) {
-        console.error('Error al consultar porcentaje de comisión:', err);
+      } catch {
       } finally {
         setCargandoComision(false);
       }
@@ -33,18 +34,23 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
     obtenerComisionBD();
   }, []);
 
-  const montoNum = parseFloat(montoSolicitado) || 0;
   const porcentajeNum = parseFloat(porcentajeComision) || 0;
   const comision = montoNum * (porcentajeNum / 100);
   const totalPunto = montoNum + comision;
 
+  // Validaciones
+  const esMontoInvalido = montoNum <= 0 || Number.isNaN(montoNum);
+  const botonDeshabilitado = loading || cargandoComision || esMontoInvalido;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (montoNum <= 0) return alert('Ingrese un monto válido');
+    if (botonDeshabilitado) return;
 
     setLoading(true);
+    const descripcionLimpia = descripcion.trim();
+
     try {
-      // 1. Registramos la salida de efectivo físico de la gaveta
+      // 1. Salida de efectivo físico de la gaveta
       const { error: errorEgreso } = await supabase.from('movimientos_caja').insert([
         {
           id_caja: idCaja,
@@ -52,21 +58,21 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
           metodo: 'efectivo',
           monto: montoNum,
           comision: 0,
-          descripcion: `Avance de efectivo: ${descripcion || 'Sin descripción'}`
+          descripcion: `Avance de efectivo: ${descripcionLimpia || 'Sin descripción'}`
         }
       ]);
 
       if (errorEgreso) throw errorEgreso;
 
-      // 2. Registramos la entrada digital (Dinámico: Punto o Pago Móvil)
+      // 2. Entrada digital (Punto o Pago Móvil)
       const { error: errorIngreso } = await supabase.from('movimientos_caja').insert([
         {
           id_caja: idCaja,
           tipo: 'ingreso',
-          metodo: metodoIngreso, // Usa el valor del selector
+          metodo: metodoIngreso,
           monto: montoNum,
           comision: comision,
-          descripcion: `Comisión (${porcentajeNum}%) por avance de efectivo (${metodoIngreso === 'punto' ? 'Punto' : 'Pago Móvil'}): ${descripcion || 'Sin descripción'}`
+          descripcion: `Comisión (${porcentajeNum}%) por avance de efectivo (${metodoIngreso === 'punto' ? 'Punto' : 'Pago Móvil'}): ${descripcionLimpia || 'Sin descripción'}`
         }
       ]);
 
@@ -75,8 +81,7 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
       alert('✅ Avance de efectivo registrado correctamente.');
       onExito();
       onClose();
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert('❌ Error al registrar el avance de efectivo.');
     } finally {
       setLoading(false);
@@ -84,11 +89,17 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
         <div className="flex justify-between items-center border-b pb-3">
           <h3 className="text-base font-bold text-slate-800">💸 Registrar Avance de Efectivo</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">✕</button>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,17 +107,16 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
           <div className="grid grid-cols-2 gap-4">
             {/* CAMPO DE MONTO */}
             <div className="col-span-2 sm:col-span-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Monto Efectivo (Bs)</label>
-              <input 
+              <label className="text-xs font-bold uppercase text-slate-500">Monto Solicitado (Bs)</label>
+              <InputMontoBase
                 id="montoSolicitado"
                 name="montoSolicitado"
-                type="number" 
-                step="0.01"
-                min="0"
-                max="1000000"
-                value={montoSolicitado}
-                onChange={(e) => setMontoSolicitado(e.target.value)}
-                placeholder="Ej. 1000.00"
+                placeholder="0,00"
+                value={montoDisplay}
+                onChange={(textoFormateado, numeroFlotante) => {
+                  setMontoDisplay(textoFormateado);
+                  setMontoNum(numeroFlotante);
+                }}
                 className="w-full mt-1 border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
                 required
               />
@@ -114,7 +124,7 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
 
             {/* SELECTOR DE MÉTODO DE INGRESO */}
             <div className="col-span-2 sm:col-span-1">
-              <label className="text-xs font-bold uppercase text-slate-500">Recibido por</label>
+              <label className="text-xs font-bold uppercase text-slate-500">Método de cobro</label>
               <select
                 value={metodoIngreso}
                 onChange={(e) => setMetodoIngreso(e.target.value)}
@@ -126,19 +136,19 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
             </div>
           </div>
 
-          {/* CUADRO DE RESUMEN - Actualizado con texto dinámico */}
+          {/* CUADRO DE RESUMEN */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1">
             <div className="flex justify-between text-slate-600">
-              <span>Efectivo que sale de gaveta:</span>
-              <strong className="text-slate-900">Bs. {montoNum.toFixed(2)}</strong>
+              <span>Efectivo que sale de caja:</span>
+              <strong className="text-slate-900">Bs. {montoNum.toFixed(2).replace('.', ',')}</strong>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Comisión ({cargandoComision ? '...' : porcentajeNum}%):</span>
-              <strong className="text-amber-700">+ Bs. {comision.toFixed(2)}</strong>
+              <strong className="text-amber-700">+ Bs. {comision.toFixed(2).replace('.', ',')}</strong>
             </div>
             <div className="flex justify-between border-t border-amber-200 pt-1 text-sm font-extrabold text-slate-800">
-              <span>Total a recibir por {metodoIngreso === 'punto' ? 'Punto' : 'Pago Móvil'}:</span>
-              <span className="text-indigo-600">Bs. {totalPunto.toFixed(2)}</span>
+              <span>Total a cobrar por {metodoIngreso === 'punto' ? 'Punto' : 'Pago Móvil'}:</span>
+              <span className="text-indigo-600">Bs. {totalPunto.toFixed(2).replace('.', ',')}</span>
             </div>
           </div>
 
@@ -146,6 +156,7 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
             <label className="text-xs font-bold uppercase text-slate-500">Descripción / Cliente (Opcional)</label>
             <input 
               type="text" 
+              maxLength={100}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               placeholder="Ej. Cédula o nombre del cliente"
@@ -163,8 +174,8 @@ export default function ModalAvanceEfectivo({ idCaja, onClose, onExito }) {
             </button>
             <button 
               type="submit" 
-              disabled={loading || cargandoComision}
-              className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg hover:bg-black disabled:opacity-50 cursor-pointer"
+              disabled={botonDeshabilitado}
+              className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               {loading ? 'Registrando...' : 'Confirmar Avance'}
             </button>
